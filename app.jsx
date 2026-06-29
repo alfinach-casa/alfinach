@@ -1,0 +1,1685 @@
+const { useState, useEffect, useMemo, useCallback } = React;
+
+/* ============================================================
+   ALFINACH — App de reservas de casa
+   Paleta: azulejo valenciano + teja + cal
+   ============================================================ */
+
+const COLORS = {
+  bg: '#F7F3EA',
+  bgCard: '#FFFFFF',
+  ink: '#2B2620',
+  inkSoft: '#6B6354',
+  azulejo: '#1B5E7A',
+  azulejoDark: '#103E52',
+  teja: '#C8703D',
+  tejaDark: '#A85A2C',
+  oliva: '#6B7F4F',
+  mostaza: '#D4A23C',
+  rojo: '#B6493A',
+  line: '#E4DCC8',
+  lineDark: '#D6CBAE',
+};
+
+const USER_COLOR_PALETTE = [
+  { name: 'Azulejo', hex: '#1B5E7A' },
+  { name: 'Teja', hex: '#C8703D' },
+  { name: 'Oliva', hex: '#6B7F4F' },
+  { name: 'Mostaza', hex: '#D4A23C' },
+  { name: 'Granate', hex: '#8C3A4B' },
+  { name: 'Lavanda', hex: '#6D5B8C' },
+  { name: 'Pino', hex: '#3B6B5E' },
+  { name: 'Coral', hex: '#C9694F' },
+  { name: 'Petróleo', hex: '#2A7F7E' },
+  { name: 'Ciruela', hex: '#7A4B6B' },
+];
+
+// Festivos fijos Comunidad Valenciana + locales Valencia ciudad (actualizar manualmente cada año)
+const FESTIVOS_VALENCIA = {
+  '2025-01-01': 'Año Nuevo',
+  '2025-01-06': 'Reyes',
+  '2025-01-22': 'San Vicente Mártir',
+  '2025-03-19': 'San José',
+  '2025-04-17': 'Jueves Santo',
+  '2025-04-18': 'Viernes Santo',
+  '2025-04-21': 'Lunes de Pascua',
+  '2025-05-01': 'Día del Trabajo',
+  '2025-08-15': 'Asunción de la Virgen',
+  '2025-10-09': 'Día de la Comunidad Valenciana',
+  '2025-11-01': 'Todos los Santos',
+  '2025-12-06': 'Día de la Constitución',
+  '2025-12-08': 'Inmaculada Concepción',
+  '2025-12-25': 'Navidad',
+  '2026-01-01': 'Año Nuevo',
+  '2026-01-06': 'Reyes',
+  '2026-01-22': 'San Vicente Mártir',
+  '2026-03-19': 'San José',
+  '2026-04-02': 'Jueves Santo',
+  '2026-04-03': 'Viernes Santo',
+  '2026-04-06': 'Lunes de Pascua',
+  '2026-05-01': 'Día del Trabajo',
+  '2026-08-15': 'Asunción de la Virgen',
+  '2026-10-09': 'Día de la Comunidad Valenciana',
+  '2026-11-01': 'Todos los Santos',
+  '2026-12-07': 'Puente Constitución (trasladado)',
+  '2026-12-08': 'Inmaculada Concepción',
+  '2026-12-25': 'Navidad',
+};
+
+const VINCULACIONES = ['Familia', 'Club/Asociación', 'Amigos de la familia', 'Otro'];
+
+const DEFAULT_HOUSE_INFO = {
+  features: `La casa dispone de 13 plazas en cama (hay algunas colchonetas hinchables disponibles para plazas adicionales).
+
+Hay dos neveras: la de la izquierda está siempre encendida y se usa habitualmente — la otra no debe tocarse.
+
+La cocina está completamente equipada: cubertería, sartenes, ollas, etc. Se puede usar el lavavajillas (las pastillas están debajo del fregadero).
+
+Terraza con columpio, sofás y sillas exteriores.`,
+
+  care: `AL LLEGAR
+1. Subir la llave del gas para el agua caliente.
+   · Posición en paralelo al tubo: abierto.
+   · Posición cruzada al tubo: cerrado.
+2. La nevera de la izquierda está siempre encendida; no tocar la otra.
+3. Sacar los cojines del columpio y los sofás y sillas a la terraza si hace falta.
+
+AL SALIR
+1. Bajar la llave del gas para el agua caliente (mismas posiciones que al llegar).
+2. Meter todas las sillas y cojines utilizados y dejarlos en su sitio.
+3. Comprobar que todas las persianas y ventanas de la casa están bien cerradas.
+4. Comprobar que todos los radiadores están desenchufados.
+5. Comprobar que los ventiladores están apagados.
+6. Comprobar que las duchas están bien ordenadas (jabones en su sitio, manguera recogida).
+7. Cerrar con llave las puertas de la casa al salir (primero la de atrás, luego la de delante).
+
+OTRAS INDICACIONES
+· Cada persona debe traer sus propias sábanas o saco y toalla.
+· Informar de cualquier desperfecto, avería u otra incidencia de interés ocurrida durante la estancia, llamando o escribiendo al 637 45 21 33.`,
+
+  payment: `Realizar el pago por Bizum al número 637 45 21 33, con la cantidad correspondiente según la tarifa.
+
+TARIFAS ALFINACH
+· Clubes de señores y universitarios: 12 €/noche por persona.
+· Matrimonios y familias (de lunes a jueves): 20 €/persona/noche + 30 € de limpieza.
+· Matrimonios y familias (fin de semana y puentes): 25 €/persona/noche + 30 € de limpieza.`,
+};
+
+// Placeholder genérico usado antes de cargar las normas reales — si el storage compartido todavía
+// contiene este texto sin editar, se considera "no editado" y se sustituye por DEFAULT_HOUSE_INFO.
+const LEGACY_PLACEHOLDER_HOUSE_INFO = {
+  features: 'Aquí puedes describir la casa: número de habitaciones y camas, baños, si tiene piscina, jardín, aire acondicionado/calefacción, wifi, parking, etc.',
+  care: 'Aquí puedes indicar las normas de uso y cuidado: horarios de entrada/salida, qué hacer con la basura, cómo dejar la casa al marchar, qué no se puede hacer, contacto en caso de emergencia, etc.',
+  payment: 'Aquí puedes indicar cómo se debe realizar el pago de la estancia: importe, número de cuenta o medio de pago, y plazo para realizarlo.',
+};
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS_SEMANA = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+const DIAS_SEMANA_LARGO = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function dateKey(d) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function parseKey(k) { const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function startOfWeekMonday(d) {
+  const r = new Date(d);
+  const day = r.getDay(); // 0=Sun
+  const diff = day === 0 ? -6 : 1 - day;
+  r.setDate(r.getDate() + diff);
+  return r;
+}
+function sameDay(a,b){ return dateKey(a)===dateKey(b); }
+function rangeOverlaps(aStart, aEnd, bStart, bEnd) {
+  return aStart <= bEnd && bStart <= aEnd;
+}
+function fmtDateHuman(d) {
+  return `${DIAS_SEMANA_LARGO[(d.getDay()+6)%7]} ${d.getDate()} de ${MESES[d.getMonth()].toLowerCase()} de ${d.getFullYear()}`;
+}
+function fmtDateShort(d) {
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+}
+
+function useIsMobile(breakpoint = 560) {
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < breakpoint : false));
+  useEffect(() => {
+    function onResize() { setIsMobile(window.innerWidth < breakpoint); }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+function uid(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
+}
+
+// Simple hash so we don't store plaintext passwords in shared storage (not cryptographically strong — fine for a family house app)
+function simpleHash(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+  return (4294967296*(2097151 & h2)+(h1>>>0)).toString(36);
+}
+
+const ADMIN_EMAIL_SEED = null; // first registered user becomes admin if no admin exists yet
+
+/* ============================================================
+   STORAGE LAYER — Firebase Firestore (datos compartidos entre todos los usuarios)
+   La sesión personal (qué usuario está conectado en este dispositivo) se guarda
+   en localStorage del propio navegador, ya que no necesita compartirse.
+   ============================================================ */
+const K_USERS = 'users';           // shared — array of user objects
+const K_EVENTS = 'events';         // shared — array of event/reservation objects
+const K_BLOCKS = 'blocks';         // shared — array of admin personal-use blocks
+const K_EDITS = 'edit_requests';   // shared — array of pending edit requests
+const K_HOUSE = 'house_info';      // shared — { features, careInstructions, payment }
+const K_SESSION = 'alfinach_session'; // personal — { userId } — localStorage, no Firestore
+
+const FIRESTORE_COLLECTION = 'alfinach';
+
+async function loadShared(key, fallback) {
+  try {
+    const db = window.__alfinachDb;
+    if (!db) return fallback;
+    const { doc, getDoc } = window.__firestoreFns;
+    const snap = await getDoc(doc(db, FIRESTORE_COLLECTION, key));
+    if (!snap.exists()) return fallback;
+    const data = snap.data();
+    return data && 'value' in data ? data.value : fallback;
+  } catch (e) {
+    console.error('loadShared error', key, e);
+    return fallback;
+  }
+}
+async function saveShared(key, value) {
+  try {
+    const db = window.__alfinachDb;
+    if (!db) return;
+    const { doc, setDoc } = window.__firestoreFns;
+    await setDoc(doc(db, FIRESTORE_COLLECTION, key), { value });
+  } catch (e) {
+    console.error('saveShared error', key, e);
+  }
+}
+async function loadPersonal(key, fallback) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) { return fallback; }
+}
+async function savePersonal(key, value) {
+  try {
+    if (value === null || value === undefined) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) { console.error('savePersonal error', key, e); }
+}
+
+/* ============================================================
+   EMAIL TEXT GENERATION
+   ============================================================ */
+function buildApprovalEmail(user) {
+  const subject = `Alfinach — Tu acceso ha sido aprobado`;
+  const body = `Hola ${user.nombre},
+
+¡Buenas noticias! Tu solicitud de acceso a Alfinach ha sido aprobada.
+
+Ya puedes entrar en la app con tu email (${user.email}) y la contraseña que elegiste, ver el calendario de la casa y enviar tus solicitudes de reserva.
+
+Tu color asignado en el calendario es: ${user.colorName}.
+
+Nos vemos en Alfinach.
+
+Un abrazo.`;
+  return { subject, body };
+}
+
+function buildEventApprovalEmail(user, event) {
+  const subject = `Alfinach — Tu reserva ha sido aprobada`;
+  const body = `Hola ${user.nombre},
+
+Tu solicitud de reserva en Alfinach ha sido aprobada:
+
+· Título: ${event.title}
+· Fechas: ${fmtDateHuman(parseKey(event.start))}${event.start !== event.end ? ` → ${fmtDateHuman(parseKey(event.end))}` : ''}
+${event.notes ? `· Notas: ${event.notes}\n` : ''}
+Ya aparece en el calendario de la casa con tu color (${user.colorName}).
+
+¡Que la disfrutéis!`;
+  return { subject, body };
+}
+
+function buildEventRejectionEmail(user, event, reason) {
+  const subject = `Alfinach — Sobre tu solicitud de reserva`;
+  const body = `Hola ${user.nombre},
+
+Tu solicitud de reserva en Alfinach para las fechas ${fmtDateHuman(parseKey(event.start))}${event.start !== event.end ? ` → ${fmtDateHuman(parseKey(event.end))}` : ''} no ha podido aprobarse${reason ? `:\n\n${reason}\n` : '.'}
+
+Puedes enviar una nueva solicitud con otras fechas cuando quieras.
+
+Un saludo.`;
+  return { subject, body };
+}
+
+function buildPreArrivalReminderEmail(user, event, paymentInfo) {
+  const subject = `Alfinach — Recordatorio antes de tu estancia (${fmtDateShort(parseKey(event.start))})`;
+  const body = `Hola ${user.nombre},
+
+Te escribo para recordarte que tienes una estancia confirmada en Alfinach:
+
+· Título: ${event.title}
+· Fechas: ${fmtDateHuman(parseKey(event.start))}${event.start !== event.end ? ` → ${fmtDateHuman(parseKey(event.end))}` : ''}
+
+Antes de la llegada, necesito que me confirmes respondiendo a este mismo correo el número de plazas/personas que finalmente seréis.
+
+Recuerda también realizar el pago correspondiente a la estancia${paymentInfo ? `:\n\n${paymentInfo}` : ' según lo indicado en la app, en la pestaña "La casa".'}
+
+Por último, si al terminar la estancia detectáis algún desperfecto o incidencia en la casa, por favor házmelo saber respondiendo a este mismo correo.
+
+¡Que disfrutéis de la estancia!`;
+  return { subject, body };
+}
+
+function buildEditApprovalEmail(user, description) {
+  const subject = `Alfinach — Cambio confirmado`;
+  const body = `Hola ${user.nombre},
+
+El cambio que solicitaste ha sido confirmado:
+
+${description}
+
+Ya está actualizado en Alfinach.
+
+Un saludo.`;
+  return { subject, body };
+}
+
+function mailtoHref(toEmail, subject, body) {
+  return `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/* ============================================================
+   SMALL UI PRIMITIVES
+   ============================================================ */
+function Button({ children, onClick, variant = 'primary', size='md', icon: Icon, disabled, type='button', full }) {
+  const base = {
+    primary: { bg: COLORS.azulejo, color: '#fff', border: COLORS.azulejo },
+    teja: { bg: COLORS.teja, color: '#fff', border: COLORS.teja },
+    ghost: { bg: 'transparent', color: COLORS.azulejo, border: COLORS.azulejo },
+    danger: { bg: 'transparent', color: COLORS.rojo, border: COLORS.rojo },
+    subtle: { bg: COLORS.bg, color: COLORS.ink, border: COLORS.line },
+  }[variant];
+  const pad = size === 'sm' ? '6px 12px' : '10px 18px';
+  const fontSize = size === 'sm' ? 13 : 14.5;
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        background: base.bg, color: base.color, border: `1.5px solid ${base.border}`,
+        borderRadius: 8, padding: pad, fontSize, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.45 : 1, fontFamily: 'inherit', width: full ? '100%' : 'auto',
+        transition: 'transform 0.08s ease, opacity 0.15s ease', whiteSpace: 'nowrap',
+      }}
+      onMouseDown={e => { if (!disabled) e.currentTarget.style.transform = 'scale(0.97)'; }}
+      onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+    >
+      {Icon && <Icon size={size === 'sm' ? 14 : 16} />}
+      {children}
+    </button>
+  );
+}
+
+function Field({ label, children, hint }) {
+  return (
+    <label style={{ display: 'block', marginBottom: 14 }}>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.inkSoft, marginBottom: 5, letterSpacing: 0.3, textTransform: 'uppercase' }}>{label}</div>
+      {children}
+      {hint && <div style={{ fontSize: 12, color: COLORS.inkSoft, marginTop: 4 }}>{hint}</div>}
+    </label>
+  );
+}
+
+const inputStyle = {
+  width: '100%', padding: '9px 12px', borderRadius: 8, border: `1.5px solid ${COLORS.line}`,
+  fontSize: 14.5, fontFamily: 'inherit', color: COLORS.ink, background: '#fff', boxSizing: 'border-box',
+  outline: 'none',
+};
+
+function Input(props) {
+  return <input {...props} style={{ ...inputStyle, ...(props.style||{}) }}
+    onFocus={e => { e.target.style.borderColor = COLORS.azulejo; }}
+    onBlur={e => { e.target.style.borderColor = COLORS.line; }} />;
+}
+function Select(props) {
+  return <select {...props} style={{ ...inputStyle, ...(props.style||{}) }} />;
+}
+function TextArea(props) {
+  return <textarea {...props} style={{ ...inputStyle, minHeight: 70, resize: 'vertical', ...(props.style||{}) }} />;
+}
+
+function Badge({ children, color, bg }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, fontWeight: 700,
+      padding: '3px 9px', borderRadius: 20, color: color || '#fff', background: bg || COLORS.azulejo,
+      letterSpacing: 0.2, textTransform: 'uppercase',
+    }}>{children}</span>
+  );
+}
+
+function Modal({ title, onClose, children, width = 480 }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(43,38,32,0.45)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#fff', borderRadius: 16, width: '100%', maxWidth: width, maxHeight: '88vh',
+        overflowY: 'auto', boxShadow: '0 20px 60px rgba(43,38,32,0.25)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: `1.5px solid ${COLORS.line}`, position: 'sticky', top: 0, background: '#fff', borderRadius: '16px 16px 0 0' }}>
+          <h3 style={{ margin: 0, fontFamily: 'Georgia, serif', fontSize: 19, color: COLORS.azulejoDark }}>{title}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLORS.inkSoft, padding: 4 }}>
+            <X size={20} />
+          </button>
+        </div>
+        <div style={{ padding: 22 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, text }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.inkSoft }}>
+      <Icon size={32} style={{ opacity: 0.4, marginBottom: 10 }} />
+      <div style={{ fontWeight: 700, color: COLORS.ink, marginBottom: 4 }}>{title}</div>
+      <div style={{ fontSize: 13.5 }}>{text}</div>
+    </div>
+  );
+}
+
+/* ============================================================
+   AUTH SCREENS
+   ============================================================ */
+function AuthScreen({ users, onLogin, onRegister }) {
+  const [mode, setMode] = useState('login'); // login | register
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+
+  const [nombre, setNombre] = useState('');
+  const [apellidos, setApellidos] = useState('');
+  const [vinculacion, setVinculacion] = useState(VINCULACIONES[0]);
+  const [vinculacionDetalle, setVinculacionDetalle] = useState('');
+  const [colorHex, setColorHex] = useState(USER_COLOR_PALETTE[0].hex);
+
+  const usedColors = new Set(users.filter(u => u.status === 'approved').map(u => u.colorHex));
+  const familiaUsers = users.filter(u => u.status === 'approved' && u.vinculacion === 'Familia');
+
+  function handleLogin(e) {
+    e.preventDefault();
+    setError('');
+    const user = users.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
+    if (!user) { setError('No existe ninguna cuenta con ese email.'); return; }
+    if (user.passwordHash !== simpleHash(password)) { setError('Contraseña incorrecta.'); return; }
+    if (user.status === 'pending') { setError('Tu cuenta todavía está pendiente de aprobación por el administrador.'); return; }
+    if (user.status === 'rejected') { setError('Tu solicitud de acceso no fue aprobada. Contacta con el administrador.'); return; }
+    onLogin(user);
+  }
+
+  function handleRegister(e) {
+    e.preventDefault();
+    setError('');
+    if (!nombre.trim() || !apellidos.trim() || !email.trim() || !password) { setError('Rellena todos los campos.'); return; }
+    if (password.length < 4) { setError('La contraseña debe tener al menos 4 caracteres.'); return; }
+    if (users.some(u => u.email.toLowerCase() === email.trim().toLowerCase())) { setError('Ya existe una cuenta con ese email.'); return; }
+    if (vinculacion === 'Amigos de la familia' && !vinculacionDetalle) { setError('Indica de quién de la familia es amigo/a.'); return; }
+    const colorObj = USER_COLOR_PALETTE.find(c => c.hex === colorHex) || USER_COLOR_PALETTE[0];
+    const isFirstUser = users.length === 0;
+    const newUser = {
+      id: uid('user'),
+      nombre: nombre.trim(),
+      apellidos: apellidos.trim(),
+      vinculacion,
+      vinculacionDetalle: vinculacion === 'Amigos de la familia' ? vinculacionDetalle : '',
+      email: email.trim(),
+      passwordHash: simpleHash(password),
+      colorHex,
+      colorName: colorObj.name,
+      role: isFirstUser ? 'admin' : 'member',
+      status: isFirstUser ? 'approved' : 'pending',
+      createdAt: new Date().toISOString(),
+    };
+    onRegister(newUser);
+    if (isFirstUser) {
+      setInfo('Cuenta creada. Como eres la primera persona registrada, eres la administradora de Alfinach.');
+    } else {
+      setInfo('¡Solicitud enviada! Cuando el administrador la apruebe, podrás entrar con tu email y contraseña.');
+    }
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', background: `linear-gradient(160deg, ${COLORS.bg} 0%, #EFE7D3 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: "'Iowan Old Style', 'Palatino Linotype', Georgia, serif" }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        <div style={{ textAlign: 'center', marginBottom: 26 }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 60, height: 60,
+            borderRadius: '14px', background: COLORS.azulejo, marginBottom: 14,
+            boxShadow: `0 8px 24px rgba(27,94,122,0.35)`,
+          }}>
+            <Home size={28} color="#fff" />
+          </div>
+          <h1 style={{ margin: 0, fontSize: 34, color: COLORS.azulejoDark, letterSpacing: 0.5 }}>Alfinach</h1>
+          <div style={{ color: COLORS.inkSoft, fontSize: 14, marginTop: 4, fontFamily: "system-ui, sans-serif" }}>El calendario de la casa</div>
+        </div>
+
+        <div style={{ background: '#fff', borderRadius: 16, padding: 26, boxShadow: '0 16px 40px rgba(43,38,32,0.12)', fontFamily: "system-ui, -apple-system, sans-serif" }}>
+          <div style={{ display: 'flex', gap: 4, background: COLORS.bg, borderRadius: 10, padding: 4, marginBottom: 20 }}>
+            {['login','register'].map(m => (
+              <button key={m} onClick={() => { setMode(m); setError(''); setInfo(''); }} style={{
+                flex: 1, padding: '8px 0', border: 'none', borderRadius: 7, cursor: 'pointer', fontWeight: 700, fontSize: 13.5,
+                background: mode === m ? COLORS.azulejo : 'transparent', color: mode === m ? '#fff' : COLORS.inkSoft,
+                fontFamily: 'inherit', transition: 'all 0.15s',
+              }}>
+                {m === 'login' ? 'Entrar' : 'Crear cuenta'}
+              </button>
+            ))}
+          </div>
+
+          {error && (
+            <div style={{ background: '#FBEAE7', color: COLORS.rojo, padding: '9px 12px', borderRadius: 8, fontSize: 13, marginBottom: 14, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /><span>{error}</span>
+            </div>
+          )}
+          {info && (
+            <div style={{ background: '#EBF1E5', color: COLORS.oliva, padding: '9px 12px', borderRadius: 8, fontSize: 13, marginBottom: 14, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <Check size={15} style={{ flexShrink: 0, marginTop: 1 }} /><span>{info}</span>
+            </div>
+          )}
+
+          {mode === 'login' ? (
+            <form onSubmit={handleLogin}>
+              <Field label="Email">
+                <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tucorreo@email.com" required />
+              </Field>
+              <Field label="Contraseña">
+                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+              </Field>
+              <Button type="submit" full>Entrar</Button>
+            </form>
+          ) : (
+            <form onSubmit={handleRegister}>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <Field label="Nombre"><Input value={nombre} onChange={e => setNombre(e.target.value)} required /></Field>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Field label="Apellidos"><Input value={apellidos} onChange={e => setApellidos(e.target.value)} required /></Field>
+                </div>
+              </div>
+              <Field label="Vinculación con la casa">
+                <Select value={vinculacion} onChange={e => setVinculacion(e.target.value)}>
+                  {VINCULACIONES.map(v => <option key={v} value={v}>{v}</option>)}
+                </Select>
+              </Field>
+              {vinculacion === 'Amigos de la familia' && (
+                <Field label="¿De quién de la familia?">
+                  {familiaUsers.length > 0 ? (
+                    <Select value={vinculacionDetalle} onChange={e => setVinculacionDetalle(e.target.value)} required>
+                      <option value="">Selecciona…</option>
+                      {familiaUsers.map(u => <option key={u.id} value={`${u.nombre} ${u.apellidos}`}>{u.nombre} {u.apellidos}</option>)}
+                    </Select>
+                  ) : (
+                    <Input value={vinculacionDetalle} onChange={e => setVinculacionDetalle(e.target.value)} placeholder="Nombre de la persona de la familia" required />
+                  )}
+                </Field>
+              )}
+              <Field label="Email">
+                <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+              </Field>
+              <Field label="Contraseña">
+                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+              </Field>
+              <Field label="Tu color en el calendario">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {USER_COLOR_PALETTE.map(c => {
+                    const taken = usedColors.has(c.hex);
+                    return (
+                      <button key={c.hex} type="button" disabled={taken} title={taken ? `${c.name} (ya en uso)` : c.name}
+                        onClick={() => setColorHex(c.hex)}
+                        style={{
+                          width: 30, height: 30, borderRadius: '50%', background: c.hex, border: colorHex === c.hex ? `3px solid ${COLORS.ink}` : '3px solid transparent',
+                          cursor: taken ? 'not-allowed' : 'pointer', opacity: taken ? 0.25 : 1, position: 'relative',
+                        }} />
+                    );
+                  })}
+                </div>
+              </Field>
+              <Button type="submit" full>Solicitar acceso</Button>
+              <div style={{ fontSize: 12, color: COLORS.inkSoft, marginTop: 10, textAlign: 'center' }}>
+                Tu cuenta deberá ser aprobada por el administrador antes de poder entrar.
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   CALENDAR HELPERS — building day cells
+   ============================================================ */
+function getEventsForDay(events, blocks, day) {
+  const k = dateKey(day);
+  const evs = events.filter(e => e.status === 'approved' && k >= e.start && k <= e.end);
+  const bls = blocks.filter(b => k >= b.start && k <= b.end);
+  return { evs, bls };
+}
+
+function DayCellContent({ evs, bls, compact, dotsOnly }) {
+  const items = [...bls.map(b => ({ type: 'block', item: b })), ...evs.map(e => ({ type: 'event', item: e }))];
+  if (items.length === 0) return null;
+
+  // On very narrow layouts (mobile month grid) we only show colored dots so the cell height never depends on content.
+  if (dotsOnly) {
+    const maxDots = 4;
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: 2, lineHeight: 0 }}>
+        {items.slice(0, maxDots).map((it, i) => (
+          <span key={i} style={{
+            width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
+            background: it.type === 'block' ? '#3a3530' : it.item.colorHex,
+          }} />
+        ))}
+        {items.length > maxDots && <span style={{ fontSize: 8, color: COLORS.inkSoft, lineHeight: '5px' }}>+{items.length - maxDots}</span>}
+      </div>
+    );
+  }
+
+  const maxShow = compact ? 2 : 4;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 3, overflow: 'hidden', flex: 1, minHeight: 0 }}>
+      {items.slice(0, maxShow).map((it, i) => (
+        it.type === 'block' ? (
+          <div key={i} style={{ fontSize: 10.5, background: '#3a3530', color: '#fff', borderRadius: 4, padding: '1px 5px', display: 'flex', alignItems: 'center', gap: 3, overflow: 'hidden', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <Lock size={9} style={{ flexShrink: 0 }} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.item.title || 'Uso personal'}</span>
+          </div>
+        ) : (
+          <div key={i} style={{ fontSize: 10.5, background: it.item.colorHex + '22', color: it.item.colorHex, borderLeft: `3px solid ${it.item.colorHex}`, borderRadius: 4, padding: '1px 5px 1px 4px', fontWeight: 700, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flexShrink: 0 }}>
+            {it.item.userName}
+          </div>
+        )
+      ))}
+      {items.length > maxShow && <div style={{ fontSize: 10, color: COLORS.inkSoft, paddingLeft: 4, flexShrink: 0 }}>+{items.length - maxShow} más</div>}
+    </div>
+  );
+}
+
+/* ============================================================
+   VIEWS: YEAR / MONTH / WEEK / DAY
+   ============================================================ */
+function YearView({ year, events, blocks, onSelectDay, onMonthClick }) {
+  const isMobile = useIsMobile();
+  const months = Array.from({ length: 12 }, (_, m) => m);
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))', gap: 16 }}>
+      {months.map(m => {
+        const first = new Date(year, m, 1);
+        const startOffset = (first.getDay() + 6) % 7;
+        const daysInMonth = new Date(year, m + 1, 0).getDate();
+        const cells = [];
+        for (let i = 0; i < startOffset; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, m, d));
+        return (
+          <div key={m} style={{ background: '#fff', borderRadius: 12, padding: 12, border: `1.5px solid ${COLORS.line}`, boxSizing: 'border-box', minWidth: 0 }}>
+            <div onClick={() => onMonthClick(m)} style={{ fontFamily: 'Georgia, serif', fontWeight: 700, color: COLORS.azulejoDark, marginBottom: 8, cursor: 'pointer', fontSize: 15 }}>
+              {MESES[m]}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
+              {DIAS_SEMANA.map(d => <div key={d} style={{ fontSize: 9.5, color: COLORS.inkSoft, textAlign: 'center', fontWeight: 700 }}>{d[0]}</div>)}
+              {cells.map((day, i) => {
+                if (!day) return <div key={i} />;
+                const k = dateKey(day);
+                const { evs, bls } = getEventsForDay(events, blocks, day);
+                const isFestivo = !!FESTIVOS_VALENCIA[k];
+                const isToday = sameDay(day, new Date());
+                const hasStuff = evs.length > 0 || bls.length > 0;
+                let bg = 'transparent';
+                if (bls.length) bg = '#3a3530';
+                else if (evs.length) bg = evs[0].colorHex;
+                return (
+                  <div key={i} onClick={() => onSelectDay(day)} title={isFestivo ? FESTIVOS_VALENCIA[k] : ''} style={{
+                    position: 'relative', textAlign: 'center', fontSize: 10.5, padding: '3px 0', borderRadius: 5, cursor: 'pointer',
+                    color: hasStuff ? '#fff' : (isFestivo ? COLORS.teja : COLORS.ink),
+                    background: hasStuff ? bg : (isFestivo ? '#FBEEE3' : 'transparent'),
+                    fontWeight: isToday ? 800 : (isFestivo ? 700 : 400),
+                    border: isToday ? `1.5px solid ${COLORS.azulejo}` : 'none',
+                  }}>
+                    {day.getDate()}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MonthView({ refDate, events, blocks, onSelectDay }) {
+  const isMobile = useIsMobile();
+  const year = refDate.getFullYear(), month = refDate.getMonth();
+  const first = new Date(year, month, 1);
+  const startOffset = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const cellHeight = isMobile ? 56 : 92;
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 1, marginBottom: 4 }}>
+        {(isMobile ? DIAS_SEMANA.map(d => d[0]) : DIAS_SEMANA_LARGO).map((d, i) => (
+          <div key={i} style={{ fontSize: isMobile ? 10.5 : 11.5, fontWeight: 700, color: COLORS.inkSoft, textAlign: 'center', padding: '6px 0', textTransform: 'uppercase', letterSpacing: 0.5 }}>{d}</div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: isMobile ? 3 : 6 }}>
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} style={{ height: cellHeight }} />;
+          const k = dateKey(day);
+          const { evs, bls } = getEventsForDay(events, blocks, day);
+          const isFestivo = FESTIVOS_VALENCIA[k];
+          const isToday = sameDay(day, new Date());
+          return (
+            <div key={i} onClick={() => onSelectDay(day)} style={{
+              height: cellHeight, boxSizing: 'border-box', overflow: 'hidden', position: 'relative',
+              background: isFestivo ? '#FBF2E8' : '#fff', borderRadius: isMobile ? 7 : 9, padding: isMobile ? '4px 4px' : '6px 7px',
+              border: isToday ? `2px solid ${COLORS.azulejo}` : `1.5px solid ${COLORS.line}`, cursor: 'pointer',
+              display: 'flex', flexDirection: 'column', minWidth: 0,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexShrink: 0 }}>
+                <span style={{ fontSize: isMobile ? 12 : 13.5, fontWeight: isToday ? 800 : 600, color: isFestivo ? COLORS.teja : COLORS.ink }}>{day.getDate()}</span>
+              </div>
+              {isFestivo && !isMobile && <div style={{ fontSize: 9.5, color: COLORS.teja, fontWeight: 600, lineHeight: 1.1, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{isFestivo}</div>}
+              {isFestivo && isMobile && <span style={{ width: 5, height: 5, borderRadius: '50%', background: COLORS.teja, position: 'absolute', top: 6, right: 6 }} />}
+              <DayCellContent evs={evs} bls={bls} compact dotsOnly={isMobile} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function WeekView({ refDate, events, blocks, onSelectDay }) {
+  const isMobile = useIsMobile();
+  const start = startOfWeekMonday(refDate);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {days.map((day, i) => {
+          const k = dateKey(day);
+          const { evs, bls } = getEventsForDay(events, blocks, day);
+          const isFestivo = FESTIVOS_VALENCIA[k];
+          const isToday = sameDay(day, new Date());
+          return (
+            <div key={i} onClick={() => onSelectDay(day)} style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10, boxSizing: 'border-box',
+              background: isFestivo ? '#FBF2E8' : '#fff', borderRadius: 10, padding: '8px 10px',
+              border: isToday ? `2px solid ${COLORS.azulejo}` : `1.5px solid ${COLORS.line}`, cursor: 'pointer',
+            }}>
+              <div style={{ flexShrink: 0, width: 44, textAlign: 'center' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.inkSoft, textTransform: 'uppercase' }}>{DIAS_SEMANA[i]}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: isFestivo ? COLORS.teja : COLORS.ink, fontFamily: 'Georgia, serif' }}>{day.getDate()}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                {isFestivo && <div style={{ fontSize: 10.5, color: COLORS.teja, fontWeight: 600, marginBottom: 2 }}>{isFestivo}</div>}
+                <DayCellContent evs={evs} bls={bls} compact />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 8 }}>
+      {days.map((day, i) => {
+        const k = dateKey(day);
+        const { evs, bls } = getEventsForDay(events, blocks, day);
+        const isFestivo = FESTIVOS_VALENCIA[k];
+        const isToday = sameDay(day, new Date());
+        return (
+          <div key={i} onClick={() => onSelectDay(day)} style={{
+            height: 170, boxSizing: 'border-box', overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0,
+            background: isFestivo ? '#FBF2E8' : '#fff', borderRadius: 10, padding: 10,
+            border: isToday ? `2px solid ${COLORS.azulejo}` : `1.5px solid ${COLORS.line}`, cursor: 'pointer',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkSoft, textTransform: 'uppercase', flexShrink: 0 }}>{DIAS_SEMANA[i]}</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: isFestivo ? COLORS.teja : COLORS.ink, fontFamily: 'Georgia, serif', flexShrink: 0 }}>{day.getDate()}</div>
+            {isFestivo && <div style={{ fontSize: 10.5, color: COLORS.teja, fontWeight: 600, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{isFestivo}</div>}
+            <DayCellContent evs={evs} bls={bls} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DayView({ refDate, events, blocks, users }) {
+  const k = dateKey(refDate);
+  const { evs, bls } = getEventsForDay(events, blocks, refDate);
+  const isFestivo = FESTIVOS_VALENCIA[k];
+  return (
+    <div>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: 26, fontWeight: 700, color: COLORS.azulejoDark, textTransform: 'capitalize' }}>
+          {fmtDateHuman(refDate)}
+        </div>
+        {isFestivo && <Badge bg={COLORS.teja}>Festivo · {isFestivo}</Badge>}
+      </div>
+      {bls.length === 0 && evs.length === 0 && (
+        <EmptyState icon={CalendarDays} title="Día libre" text="No hay reservas ni bloqueos para este día." />
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {bls.map((b, i) => (
+          <div key={i} style={{ background: '#3a3530', color: '#fff', borderRadius: 10, padding: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Lock size={18} />
+            <div>
+              <div style={{ fontWeight: 700 }}>{b.title || 'Uso personal de la casa'}</div>
+              <div style={{ fontSize: 12.5, opacity: 0.8 }}>{fmtDateShort(parseKey(b.start))} – {fmtDateShort(parseKey(b.end))}</div>
+            </div>
+          </div>
+        ))}
+        {evs.map((e, i) => (
+          <div key={i} style={{ background: e.colorHex + '15', borderLeft: `4px solid ${e.colorHex}`, borderRadius: 10, padding: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontWeight: 700, color: COLORS.ink }}>{e.title}</div>
+              <Badge bg={e.colorHex}>{e.userName}</Badge>
+            </div>
+            <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 3 }}>{fmtDateShort(parseKey(e.start))} – {fmtDateShort(parseKey(e.end))}</div>
+            {e.notes && <div style={{ fontSize: 13, color: COLORS.ink, marginTop: 6 }}>{e.notes}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   NEW EVENT REQUEST MODAL
+   ============================================================ */
+function NewEventModal({ onClose, onSubmit, defaultDate, existingEvent, isAdmin }) {
+  const [title, setTitle] = useState(existingEvent?.title || '');
+  const [start, setStart] = useState(existingEvent?.start || dateKey(defaultDate || new Date()));
+  const [end, setEnd] = useState(existingEvent?.end || dateKey(defaultDate || new Date()));
+  const [notes, setNotes] = useState(existingEvent?.notes || '');
+  const [error, setError] = useState('');
+
+  function submit(e) {
+    e.preventDefault();
+    if (!title.trim()) { setError('Indica un título para la reserva.'); return; }
+    if (parseKey(end) < parseKey(start)) { setError('La fecha de fin no puede ser anterior a la de inicio.'); return; }
+    onSubmit({ title: title.trim(), start, end, notes: notes.trim() });
+  }
+
+  return (
+    <Modal title={existingEvent ? 'Editar solicitud de reserva' : 'Nueva solicitud de reserva'} onClose={onClose}>
+      <form onSubmit={submit}>
+        {error && <div style={{ background: '#FBEAE7', color: COLORS.rojo, padding: '8px 12px', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>{error}</div>}
+        <Field label="Título"><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ej. Fin de semana con amigos" required /></Field>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ flex: 1 }}><Field label="Llegada"><Input type="date" value={start} onChange={e => setStart(e.target.value)} required /></Field></div>
+          <div style={{ flex: 1 }}><Field label="Salida"><Input type="date" value={end} onChange={e => setEnd(e.target.value)} required /></Field></div>
+        </div>
+        <Field label="Notas (opcional)"><TextArea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Cuántas personas, algo a tener en cuenta…" /></Field>
+        <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 14, display: 'flex', gap: 6 }}>
+          <Clock size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+          {existingEvent ? 'Este cambio quedará pendiente de aprobación antes de actualizarse en el calendario.' : 'Tu solicitud quedará pendiente hasta que el administrador la apruebe.'}
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <Button variant="subtle" onClick={onClose}>Cancelar</Button>
+          <Button type="submit">{existingEvent ? 'Enviar cambio' : 'Enviar solicitud'}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function NewBlockModal({ onClose, onSubmit, defaultDate }) {
+  const [title, setTitle] = useState('Uso personal');
+  const [start, setStart] = useState(dateKey(defaultDate || new Date()));
+  const [end, setEnd] = useState(dateKey(defaultDate || new Date()));
+  const [error, setError] = useState('');
+
+  function submit(e) {
+    e.preventDefault();
+    if (parseKey(end) < parseKey(start)) { setError('La fecha de fin no puede ser anterior a la de inicio.'); return; }
+    onSubmit({ title: title.trim() || 'Uso personal', start, end });
+  }
+
+  return (
+    <Modal title="Bloquear fechas para uso personal" onClose={onClose}>
+      <form onSubmit={submit}>
+        {error && <div style={{ background: '#FBEAE7', color: COLORS.rojo, padding: '8px 12px', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>{error}</div>}
+        <Field label="Motivo (opcional)"><Input value={title} onChange={e => setTitle(e.target.value)} /></Field>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ flex: 1 }}><Field label="Desde"><Input type="date" value={start} onChange={e => setStart(e.target.value)} required /></Field></div>
+          <div style={{ flex: 1 }}><Field label="Hasta"><Input type="date" value={end} onChange={e => setEnd(e.target.value)} required /></Field></div>
+        </div>
+        <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 14 }}>Estas fechas se bloquearán de inmediato en el calendario para todos los usuarios.</div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <Button variant="subtle" onClick={onClose}>Cancelar</Button>
+          <Button variant="teja" type="submit" icon={Lock}>Bloquear</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function EditProfileModal({ user, users, onClose, onSubmit, isAdmin, isSelf }) {
+  const [nombre, setNombre] = useState(user.nombre);
+  const [apellidos, setApellidos] = useState(user.apellidos);
+  const [vinculacion, setVinculacion] = useState(user.vinculacion);
+  const [vinculacionDetalle, setVinculacionDetalle] = useState(user.vinculacionDetalle || '');
+  const [colorHex, setColorHex] = useState(user.colorHex);
+  const usedColors = new Set(users.filter(u => u.status === 'approved' && u.id !== user.id).map(u => u.colorHex));
+  const familiaUsers = users.filter(u => u.status === 'approved' && u.vinculacion === 'Familia' && u.id !== user.id);
+
+  function submit(e) {
+    e.preventDefault();
+    const colorObj = USER_COLOR_PALETTE.find(c => c.hex === colorHex) || USER_COLOR_PALETTE[0];
+    onSubmit({ nombre: nombre.trim(), apellidos: apellidos.trim(), vinculacion, vinculacionDetalle: vinculacion === 'Amigos de la familia' ? vinculacionDetalle : '', colorHex, colorName: colorObj.name });
+  }
+
+  return (
+    <Modal title="Editar datos de usuario" onClose={onClose}>
+      <form onSubmit={submit}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ flex: 1 }}><Field label="Nombre"><Input value={nombre} onChange={e => setNombre(e.target.value)} required /></Field></div>
+          <div style={{ flex: 1 }}><Field label="Apellidos"><Input value={apellidos} onChange={e => setApellidos(e.target.value)} required /></Field></div>
+        </div>
+        <Field label="Vinculación con la casa">
+          <Select value={vinculacion} onChange={e => setVinculacion(e.target.value)}>
+            {VINCULACIONES.map(v => <option key={v} value={v}>{v}</option>)}
+          </Select>
+        </Field>
+        {vinculacion === 'Amigos de la familia' && (
+          <Field label="¿De quién de la familia?">
+            {familiaUsers.length > 0 ? (
+              <Select value={vinculacionDetalle} onChange={e => setVinculacionDetalle(e.target.value)}>
+                <option value="">Selecciona…</option>
+                {familiaUsers.map(u => <option key={u.id} value={`${u.nombre} ${u.apellidos}`}>{u.nombre} {u.apellidos}</option>)}
+              </Select>
+            ) : (
+              <Input value={vinculacionDetalle} onChange={e => setVinculacionDetalle(e.target.value)} placeholder="Nombre de la persona de la familia" />
+            )}
+          </Field>
+        )}
+        <Field label="Color en el calendario">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {USER_COLOR_PALETTE.map(c => {
+              const taken = usedColors.has(c.hex);
+              return (
+                <button key={c.hex} type="button" disabled={taken} title={c.name} onClick={() => setColorHex(c.hex)}
+                  style={{ width: 28, height: 28, borderRadius: '50%', background: c.hex, border: colorHex === c.hex ? `3px solid ${COLORS.ink}` : '3px solid transparent', cursor: taken ? 'not-allowed' : 'pointer', opacity: taken ? 0.25 : 1 }} />
+              );
+            })}
+          </div>
+        </Field>
+        <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 14, display: 'flex', gap: 6 }}>
+          <Clock size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+          {isAdmin && isSelf ? 'Como administrador, este cambio se aplicará directamente.' : 'Este cambio quedará pendiente de aprobación por el administrador.'}
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <Button variant="subtle" onClick={onClose}>Cancelar</Button>
+          <Button type="submit">{isAdmin && isSelf ? 'Guardar' : 'Enviar cambio'}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ============================================================
+   MAIN APP
+   ============================================================ */
+function AlfinachApp() {
+  const isMobile = useIsMobile();
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [blocks, setBlocks] = useState([]);
+  const [editRequests, setEditRequests] = useState([]);
+  const [houseInfo, setHouseInfo] = useState(DEFAULT_HOUSE_INFO);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  const [view, setView] = useState('month'); // year | month | week | day
+  const [refDate, setRefDate] = useState(new Date());
+  const [activePanel, setActivePanel] = useState(null); // 'admin' | 'profile' | null
+  const [showNewEvent, setShowNewEvent] = useState(false);
+  const [showNewBlock, setShowNewBlock] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [pendingMailto, setPendingMailto] = useState(null); // { href, subject, body, to }
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [rejectingEvent, setRejectingEvent] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [pendingReminders, setPendingReminders] = useState([]); // events needing the 3-day pre-arrival email
+
+  // Load all shared data + session on mount
+  useEffect(() => {
+    (async () => {
+      // Espera a que firebase-config.js haya terminado de inicializar Firestore
+      if (!window.__alfinachDb) {
+        await new Promise((resolve) => {
+          window.addEventListener('alfinach-firebase-ready', resolve, { once: true });
+          // Salvaguarda: si por lo que sea el evento nunca llega, no nos quedamos bloqueados para siempre
+          setTimeout(resolve, 8000);
+        });
+      }
+      const [u, e, b, er, hi, session] = await Promise.all([
+        loadShared(K_USERS, []),
+        loadShared(K_EVENTS, []),
+        loadShared(K_BLOCKS, []),
+        loadShared(K_EDITS, []),
+        loadShared(K_HOUSE, DEFAULT_HOUSE_INFO),
+        loadPersonal(K_SESSION, null),
+      ]);
+      const isLegacyPlaceholder = hi && hi.features === LEGACY_PLACEHOLDER_HOUSE_INFO.features
+        && hi.care === LEGACY_PLACEHOLDER_HOUSE_INFO.care && hi.payment === LEGACY_PLACEHOLDER_HOUSE_INFO.payment;
+      const resolvedHouseInfo = isLegacyPlaceholder ? DEFAULT_HOUSE_INFO : hi;
+      setUsers(u); setEvents(e); setBlocks(b); setEditRequests(er); setHouseInfo(resolvedHouseInfo);
+      if (isLegacyPlaceholder) saveShared(K_HOUSE, DEFAULT_HOUSE_INFO);
+      if (session?.userId && u.some(x => x.id === session.userId)) setCurrentUserId(session.userId);
+      setLoading(false);
+    })();
+  }, []);
+
+  // Suscripción en tiempo real: si otra persona aprueba/crea algo desde su móvil,
+  // esta pantalla se actualiza sola sin necesidad de recargar.
+  useEffect(() => {
+    let unsubUsers, unsubEvents, unsubBlocks, unsubEdits, unsubHouse;
+    let cancelled = false;
+
+    (async () => {
+      if (!window.__alfinachDb) {
+        await new Promise((resolve) => {
+          window.addEventListener('alfinach-firebase-ready', resolve, { once: true });
+          setTimeout(resolve, 8000);
+        });
+      }
+      if (cancelled) return;
+      const db = window.__alfinachDb;
+      if (!db) return;
+      const { doc, onSnapshot } = window.__firestoreFns;
+      unsubUsers = onSnapshot(doc(db, FIRESTORE_COLLECTION, K_USERS), (snap) => {
+        if (snap.exists() && snap.data() && 'value' in snap.data()) setUsers(snap.data().value);
+      });
+      unsubEvents = onSnapshot(doc(db, FIRESTORE_COLLECTION, K_EVENTS), (snap) => {
+        if (snap.exists() && snap.data() && 'value' in snap.data()) setEvents(snap.data().value);
+      });
+      unsubBlocks = onSnapshot(doc(db, FIRESTORE_COLLECTION, K_BLOCKS), (snap) => {
+        if (snap.exists() && snap.data() && 'value' in snap.data()) setBlocks(snap.data().value);
+      });
+      unsubEdits = onSnapshot(doc(db, FIRESTORE_COLLECTION, K_EDITS), (snap) => {
+        if (snap.exists() && snap.data() && 'value' in snap.data()) setEditRequests(snap.data().value);
+      });
+      unsubHouse = onSnapshot(doc(db, FIRESTORE_COLLECTION, K_HOUSE), (snap) => {
+        if (snap.exists() && snap.data() && 'value' in snap.data()) setHouseInfo(snap.data().value);
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsubUsers) unsubUsers();
+      if (unsubEvents) unsubEvents();
+      if (unsubBlocks) unsubBlocks();
+      if (unsubEdits) unsubEdits();
+      if (unsubHouse) unsubHouse();
+    };
+  }, []);
+
+  const currentUser = users.find(u => u.id === currentUserId) || null;
+  const isAdmin = currentUser?.role === 'admin';
+
+  async function persistUsers(next) { setUsers(next); await saveShared(K_USERS, next); }
+  async function persistEvents(next) { setEvents(next); await saveShared(K_EVENTS, next); }
+  async function persistBlocks(next) { setBlocks(next); await saveShared(K_BLOCKS, next); }
+  async function persistEdits(next) { setEditRequests(next); await saveShared(K_EDITS, next); }
+  async function persistHouseInfo(next) { setHouseInfo(next); await saveShared(K_HOUSE, next); }
+
+  // Detect approved reservations starting in exactly 3 days that haven't had their reminder sent yet.
+  // Runs whenever the admin opens/uses the app — there's no background process, so this check happens on load/refresh.
+  useEffect(() => {
+    if (!isAdmin || loading) return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const targetKey = dateKey(addDays(today, 3));
+    const due = events.filter(e => e.status === 'approved' && !e.reminderSent && e.start === targetKey);
+    if (due.length > 0) setPendingReminders(due);
+  }, [isAdmin, loading, events]);
+
+  async function markReminderSent(eventId) {
+    const next = events.map(e => e.id === eventId ? { ...e, reminderSent: true, reminderSentAt: new Date().toISOString() } : e);
+    await persistEvents(next);
+    setPendingReminders(prev => prev.filter(e => e.id !== eventId));
+  }
+
+  function sendPreArrivalReminder(ev) {
+    const u = users.find(x => x.id === ev.userId);
+    if (!u) return;
+    const { subject, body } = buildPreArrivalReminderEmail(u, ev, houseInfo.payment);
+    setPendingMailto({ to: u.email, subject, body, label: 'Recordatorio previo a la estancia', onSent: () => markReminderSent(ev.id) });
+  }
+
+  async function handleLogin(user) {
+    setCurrentUserId(user.id);
+    await savePersonal(K_SESSION, { userId: user.id });
+  }
+  async function handleLogout() {
+    setCurrentUserId(null);
+    await savePersonal(K_SESSION, null);
+  }
+  async function handleRegister(newUser) {
+    const next = [...users, newUser];
+    await persistUsers(next);
+    if (newUser.role === 'admin') {
+      setCurrentUserId(newUser.id);
+      await savePersonal(K_SESSION, { userId: newUser.id });
+    }
+  }
+
+  // ---- Admin: approve/reject user ----
+  async function approveUser(userId) {
+    const u = users.find(x => x.id === userId);
+    const next = users.map(x => x.id === userId ? { ...x, status: 'approved' } : x);
+    await persistUsers(next);
+    if (u) {
+      const { subject, body } = buildApprovalEmail(u);
+      setPendingMailto({ to: u.email, subject, body, label: 'Aprobación de usuario' });
+    }
+  }
+  async function rejectUser(userId) {
+    const next = users.map(x => x.id === userId ? { ...x, status: 'rejected' } : x);
+    await persistUsers(next);
+  }
+
+  // ---- Event requests ----
+  async function submitEventRequest({ title, start, end, notes }) {
+    const newEvent = {
+      id: uid('ev'), title, start, end, notes,
+      userId: currentUser.id, userName: `${currentUser.nombre} ${currentUser.apellidos}`,
+      colorHex: currentUser.colorHex, status: 'pending', createdAt: new Date().toISOString(),
+    };
+    await persistEvents([...events, newEvent]);
+    setShowNewEvent(false);
+  }
+
+  async function approveEvent(eventId) {
+    const ev = events.find(e => e.id === eventId);
+    const next = events.map(e => e.id === eventId ? { ...e, status: 'approved' } : e);
+    await persistEvents(next);
+    if (ev) {
+      const u = users.find(x => x.id === ev.userId);
+      if (u) {
+        const { subject, body } = buildEventApprovalEmail(u, ev);
+        setPendingMailto({ to: u.email, subject, body, label: 'Aprobación de reserva' });
+      }
+    }
+  }
+
+  function openReject(ev) { setRejectingEvent(ev); setRejectReason(''); }
+
+  async function confirmRejectEvent() {
+    const ev = rejectingEvent;
+    const next = events.map(e => e.id === ev.id ? { ...e, status: 'rejected', rejectReason } : e);
+    await persistEvents(next);
+    const u = users.find(x => x.id === ev.userId);
+    if (u) {
+      const { subject, body } = buildEventRejectionEmail(u, ev, rejectReason);
+      setPendingMailto({ to: u.email, subject, body, label: 'Solicitud no aprobada' });
+    }
+    setRejectingEvent(null);
+  }
+
+  async function deleteEvent(eventId) {
+    await persistEvents(events.filter(e => e.id !== eventId));
+  }
+
+  // ---- Edit existing event (always goes to approval, unless admin editing) ----
+  async function submitEventEdit(updated) {
+    const ev = editingEvent;
+    if (isAdmin) {
+      const next = events.map(e => e.id === ev.id ? { ...e, ...updated } : e);
+      await persistEvents(next);
+    } else {
+      const req = {
+        id: uid('edit'), type: 'event', targetId: ev.id, userId: currentUser.id,
+        userName: `${currentUser.nombre} ${currentUser.apellidos}`, userEmail: currentUser.email,
+        description: `Modificar reserva "${ev.title}" → título: "${updated.title}", fechas: ${updated.start} a ${updated.end}${updated.notes ? `, notas: ${updated.notes}` : ''}`,
+        payload: updated, createdAt: new Date().toISOString(), status: 'pending',
+      };
+      await persistEdits([...editRequests, req]);
+    }
+    setEditingEvent(null);
+  }
+
+  // ---- Blocks (admin only, immediate) ----
+  async function submitBlock({ title, start, end }) {
+    const newBlock = { id: uid('block'), title, start, end, createdAt: new Date().toISOString() };
+    await persistBlocks([...blocks, newBlock]);
+    setShowNewBlock(false);
+  }
+  async function deleteBlock(blockId) {
+    await persistBlocks(blocks.filter(b => b.id !== blockId));
+  }
+
+  // ---- Profile edits ----
+  async function submitProfileEdit(updated) {
+    if (isAdmin) {
+      const next = users.map(u => u.id === currentUser.id ? { ...u, ...updated } : u);
+      await persistUsers(next);
+    } else {
+      const req = {
+        id: uid('edit'), type: 'profile', targetId: currentUser.id, userId: currentUser.id,
+        userName: `${currentUser.nombre} ${currentUser.apellidos}`, userEmail: currentUser.email,
+        description: `Actualizar datos de perfil de ${currentUser.nombre} ${currentUser.apellidos} → ${JSON.stringify(updated)}`,
+        payload: updated, createdAt: new Date().toISOString(), status: 'pending',
+      };
+      await persistEdits([...editRequests, req]);
+    }
+    setShowEditProfile(false);
+  }
+
+  async function approveEditRequest(reqId) {
+    const req = editRequests.find(r => r.id === reqId);
+    if (!req) return;
+    if (req.type === 'event') {
+      const next = events.map(e => e.id === req.targetId ? { ...e, ...req.payload } : e);
+      await persistEvents(next);
+    } else if (req.type === 'profile') {
+      const next = users.map(u => u.id === req.targetId ? { ...u, ...req.payload } : u);
+      await persistUsers(next);
+    }
+    await persistEdits(editRequests.map(r => r.id === reqId ? { ...r, status: 'approved' } : r));
+    const { subject, body } = buildEditApprovalEmail({ nombre: req.userName.split(' ')[0] }, req.description);
+    setPendingMailto({ to: req.userEmail, subject, body, label: 'Confirmación de cambio' });
+  }
+  async function rejectEditRequest(reqId) {
+    await persistEdits(editRequests.map(r => r.id === reqId ? { ...r, status: 'rejected' } : r));
+  }
+
+  function goPrev() {
+    if (view === 'year') setRefDate(d => new Date(d.getFullYear() - 1, 0, 1));
+    else if (view === 'month') setRefDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+    else if (view === 'week') setRefDate(d => addDays(d, -7));
+    else setRefDate(d => addDays(d, -1));
+  }
+  function goNext() {
+    if (view === 'year') setRefDate(d => new Date(d.getFullYear() + 1, 0, 1));
+    else if (view === 'month') setRefDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+    else if (view === 'week') setRefDate(d => addDays(d, 7));
+    else setRefDate(d => addDays(d, 1));
+  }
+  function goToday() { setRefDate(new Date()); }
+
+  const pendingUsers = users.filter(u => u.status === 'pending');
+  const pendingEvents = events.filter(e => e.status === 'pending');
+  const pendingEdits = editRequests.filter(r => r.status === 'pending');
+  const totalPending = pendingUsers.length + pendingEvents.length + pendingEdits.length + pendingReminders.length;
+
+  const myEvents = currentUser ? events.filter(e => e.userId === currentUser.id) : [];
+
+  if (loading) {
+    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg, fontFamily: 'system-ui' }}>Cargando Alfinach…</div>;
+  }
+
+  if (!currentUser) {
+    return <AuthScreen users={users} onLogin={handleLogin} onRegister={handleRegister} />;
+  }
+
+  const headerLabel = (() => {
+    if (view === 'year') return `${refDate.getFullYear()}`;
+    if (view === 'month') return `${MESES[refDate.getMonth()]} ${refDate.getFullYear()}`;
+    if (view === 'week') {
+      const s = startOfWeekMonday(refDate), e = addDays(s, 6);
+      return `${s.getDate()} ${MESES[s.getMonth()].slice(0,3)} – ${e.getDate()} ${MESES[e.getMonth()].slice(0,3)} ${e.getFullYear()}`;
+    }
+    return fmtDateHuman(refDate);
+  })();
+
+  return (
+    <div style={{ minHeight: '100vh', background: COLORS.bg, fontFamily: "system-ui, -apple-system, sans-serif", color: COLORS.ink }}>
+      {/* Header */}
+      <div style={{ background: COLORS.azulejoDark, color: '#fff', padding: '14px 20px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Home size={22} />
+            <span style={{ fontFamily: 'Georgia, serif', fontSize: 21, fontWeight: 700, letterSpacing: 0.3 }}>Alfinach</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <button onClick={() => setActivePanel('house')} style={{
+              background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff',
+              borderRadius: 8, padding: isMobile ? '8px 10px' : '8px 14px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13.5, flexShrink: 0,
+            }}>
+              <Info size={15} /> {!isMobile && 'La casa'}
+            </button>
+            {isAdmin && (
+              <button onClick={() => setActivePanel('admin')} style={{
+                position: 'relative', background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff',
+                borderRadius: 8, padding: isMobile ? '8px 10px' : '8px 14px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13.5, flexShrink: 0,
+              }}>
+                <Shield size={15} /> {!isMobile && 'Administración'}
+                {totalPending > 0 && (
+                  <span style={{ position: 'absolute', top: -6, right: -6, background: COLORS.teja, borderRadius: 10, fontSize: 10.5, fontWeight: 800, padding: '1px 6px' }}>{totalPending}</span>
+                )}
+              </button>
+            )}
+            <button onClick={() => setActivePanel('profile')} style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', minWidth: 0, flexShrink: 1, overflow: 'hidden' }}>
+              <span style={{ width: 18, height: 18, borderRadius: '50%', background: currentUser.colorHex, display: 'inline-block', border: '2px solid rgba(255,255,255,0.7)', flexShrink: 0 }} />
+              <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? 80 : 'none' }}>{currentUser.nombre}</span>
+            </button>
+            <button onClick={handleLogout} title="Cerrar sesión" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', padding: 8, flexShrink: 0 }}>
+              <LogOut size={17} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '20px 16px 60px' }}>
+        {/* Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <button onClick={goPrev} style={{ background: '#fff', border: `1.5px solid ${COLORS.line}`, borderRadius: 8, padding: 7, cursor: 'pointer', display: 'flex', flexShrink: 0 }}><ChevronLeft size={18} color={COLORS.azulejo} /></button>
+            <div style={{ fontFamily: 'Georgia, serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: COLORS.azulejoDark, minWidth: isMobile ? 0 : 160, textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{headerLabel}</div>
+            <button onClick={goNext} style={{ background: '#fff', border: `1.5px solid ${COLORS.line}`, borderRadius: 8, padding: 7, cursor: 'pointer', display: 'flex', flexShrink: 0 }}><ChevronRight size={18} color={COLORS.azulejo} /></button>
+            {!isMobile && <Button variant="subtle" size="sm" onClick={goToday}>Hoy</Button>}
+          </div>
+          <div style={{ display: 'flex', gap: isMobile ? 2 : 6, background: '#fff', borderRadius: 9, padding: 4, border: `1.5px solid ${COLORS.line}`, flexShrink: 0 }}>
+            {[
+              { id: 'year', label: 'Año', icon: CalendarRange },
+              { id: 'month', label: 'Mes', icon: Calendar },
+              { id: 'week', label: 'Semana', icon: CalendarDays },
+              { id: 'day', label: 'Día', icon: List },
+            ].map(v => (
+              <button key={v.id} onClick={() => setView(v.id)} title={v.label} style={{
+                display: 'flex', alignItems: 'center', gap: 5, border: 'none', borderRadius: 6, padding: isMobile ? '6px 8px' : '6px 11px', cursor: 'pointer',
+                background: view === v.id ? COLORS.azulejo : 'transparent', color: view === v.id ? '#fff' : COLORS.inkSoft, fontWeight: 600, fontSize: 13,
+              }}>
+                <v.icon size={14} />{!isMobile && v.label}
+              </button>
+            ))}
+          </div>
+          {isMobile && <Button variant="subtle" size="sm" onClick={goToday} full>Hoy</Button>}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+          <Button icon={Plus} onClick={() => { setSelectedDay(refDate); setShowNewEvent(true); }}>Solicitar reserva</Button>
+          {isAdmin && <Button variant="teja" icon={Lock} onClick={() => { setSelectedDay(refDate); setShowNewBlock(true); }}>Bloquear fechas</Button>}
+          <Button variant="ghost" icon={Info} onClick={() => setActivePanel('house')}>La casa</Button>
+        </div>
+
+        {/* Calendar body */}
+        <div style={{ background: view === 'year' ? 'transparent' : '#fff', borderRadius: 14, padding: view === 'year' ? 0 : 18, border: view === 'year' ? 'none' : `1.5px solid ${COLORS.line}` }}>
+          {view === 'year' && (
+            <YearView year={refDate.getFullYear()} events={events} blocks={blocks}
+              onSelectDay={(d) => { setRefDate(d); setView('day'); }}
+              onMonthClick={(m) => { setRefDate(new Date(refDate.getFullYear(), m, 1)); setView('month'); }} />
+          )}
+          {view === 'month' && <MonthView refDate={refDate} events={events} blocks={blocks} onSelectDay={(d) => { setRefDate(d); setView('day'); }} />}
+          {view === 'week' && <WeekView refDate={refDate} events={events} blocks={blocks} onSelectDay={(d) => { setRefDate(d); setView('day'); }} />}
+          {view === 'day' && <DayView refDate={refDate} events={events} blocks={blocks} users={users} />}
+        </div>
+
+        {/* My requests */}
+        <div style={{ marginTop: 28 }}>
+          <h3 style={{ fontFamily: 'Georgia, serif', color: COLORS.azulejoDark, fontSize: 18, marginBottom: 10 }}>Mis solicitudes</h3>
+          {myEvents.length === 0 ? (
+            <EmptyState icon={CalendarDays} title="Aún no tienes solicitudes" text="Usa el botón 'Solicitar reserva' para pedir tus fechas." />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {myEvents.sort((a,b)=>a.start.localeCompare(b.start)).map(ev => (
+                <div key={ev.id} style={{ background: '#fff', borderRadius: 10, padding: 12, border: `1.5px solid ${COLORS.line}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{ev.title}</div>
+                    <div style={{ fontSize: 12.5, color: COLORS.inkSoft }}>{fmtDateShort(parseKey(ev.start))} – {fmtDateShort(parseKey(ev.end))}</div>
+                    {ev.status === 'rejected' && ev.rejectReason && <div style={{ fontSize: 12, color: COLORS.rojo, marginTop: 3 }}>Motivo: {ev.rejectReason}</div>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {ev.status === 'pending' && <Badge bg={COLORS.mostaza}>Pendiente</Badge>}
+                    {ev.status === 'approved' && <Badge bg={COLORS.oliva}>Aprobada</Badge>}
+                    {ev.status === 'rejected' && <Badge bg={COLORS.rojo}>No aprobada</Badge>}
+                    {ev.status !== 'rejected' && (
+                      <button onClick={() => setEditingEvent(ev)} style={{ background: 'none', border: 'none', color: COLORS.azulejo, cursor: 'pointer', padding: 4 }} title="Editar">
+                        <Edit2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: 30, fontSize: 12, color: COLORS.inkSoft, textAlign: 'center', borderTop: `1.5px solid ${COLORS.line}`, paddingTop: 16 }}>
+          Festivos según calendario laboral de Valencia · datos guardados de forma compartida entre todas las personas con acceso a Alfinach.
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showNewEvent && (
+        <NewEventModal defaultDate={selectedDay} onClose={() => setShowNewEvent(false)} onSubmit={submitEventRequest} />
+      )}
+      {showNewBlock && isAdmin && (
+        <NewBlockModal defaultDate={selectedDay} onClose={() => setShowNewBlock(false)} onSubmit={submitBlock} />
+      )}
+      {editingEvent && (
+        <NewEventModal existingEvent={editingEvent} isAdmin={isAdmin} onClose={() => setEditingEvent(null)} onSubmit={submitEventEdit} />
+      )}
+      {showEditProfile && (
+        <EditProfileModal user={currentUser} users={users} isAdmin={isAdmin} isSelf onClose={() => setShowEditProfile(false)} onSubmit={submitProfileEdit} />
+      )}
+
+      {rejectingEvent && (
+        <Modal title="Rechazar solicitud" onClose={() => setRejectingEvent(null)}>
+          <Field label="Motivo (se incluirá en el email, opcional)">
+            <TextArea value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Ej. esas fechas ya están comprometidas para otra reserva." />
+          </Field>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 6 }}>
+            <Button variant="subtle" onClick={() => setRejectingEvent(null)}>Cancelar</Button>
+            <Button variant="danger" onClick={confirmRejectEvent}>Rechazar y notificar</Button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Profile panel */}
+      {activePanel === 'profile' && (
+        <Modal title="Mi perfil" onClose={() => setActivePanel(null)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <span style={{ width: 40, height: 40, borderRadius: '50%', background: currentUser.colorHex, display: 'inline-block', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{currentUser.nombre} {currentUser.apellidos}</div>
+              <div style={{ fontSize: 13, color: COLORS.inkSoft }}>{currentUser.vinculacion}{currentUser.vinculacionDetalle ? ` (${currentUser.vinculacionDetalle})` : ''} {isAdmin && '· Administrador/a'}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 13.5, color: COLORS.inkSoft, marginBottom: 16 }}>
+            <Mail size={13} style={{ verticalAlign: -2, marginRight: 5 }} />{currentUser.email}
+          </div>
+          <Button icon={Edit2} variant="subtle" full onClick={() => { setActivePanel(null); setShowEditProfile(true); }}>Editar mis datos</Button>
+        </Modal>
+      )}
+
+      {/* Admin panel */}
+      {activePanel === 'admin' && isAdmin && (
+        <Modal title="Panel de administración" onClose={() => setActivePanel(null)} width={620}>
+          <AdminPanel
+            users={users} pendingUsers={pendingUsers} pendingEvents={pendingEvents} pendingEdits={pendingEdits}
+            pendingReminders={pendingReminders}
+            blocks={blocks}
+            onApproveUser={approveUser} onRejectUser={rejectUser}
+            onApproveEvent={approveEvent} onRejectEvent={openReject}
+            onApproveEdit={approveEditRequest} onRejectEdit={rejectEditRequest}
+            onDeleteBlock={deleteBlock} onDeleteEvent={deleteEvent}
+            onSendReminder={sendPreArrivalReminder} onSkipReminder={markReminderSent}
+            allEvents={events}
+          />
+        </Modal>
+      )}
+
+      {/* La Casa — info panel, visible to everyone, editable only by admin */}
+      {activePanel === 'house' && (
+        <Modal title="La casa" onClose={() => setActivePanel(null)} width={620}>
+          <HousePanel houseInfo={houseInfo} isAdmin={isAdmin} onSave={persistHouseInfo} />
+        </Modal>
+      )}
+
+      {/* Mailto confirmation */}
+      {pendingMailto && (
+        <Modal title={pendingMailto.label} onClose={() => setPendingMailto(null)} width={520}>
+          <div style={{ fontSize: 13.5, color: COLORS.inkSoft, marginBottom: 10 }}>
+            {pendingMailto.onSent ? 'Reserva próxima a comenzar.' : 'Se ha actualizado Alfinach.'} Pulsa el botón para abrir tu correo con el mensaje ya redactado para enviarlo a <strong>{pendingMailto.to}</strong>.
+          </div>
+          <div style={{ background: COLORS.bg, borderRadius: 10, padding: 14, fontSize: 13, whiteSpace: 'pre-wrap', marginBottom: 16, border: `1.5px solid ${COLORS.line}`, maxHeight: 240, overflowY: 'auto' }}>
+            <strong>Asunto:</strong> {pendingMailto.subject}{'\n\n'}{pendingMailto.body}
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <Button variant="subtle" onClick={() => setPendingMailto(null)}>{pendingMailto.onSent ? 'Recordarme más tarde' : 'Cerrar'}</Button>
+            <a href={mailtoHref(pendingMailto.to, pendingMailto.subject, pendingMailto.body)} style={{ textDecoration: 'none' }}>
+              <Button icon={Mail} onClick={() => { if (pendingMailto.onSent) pendingMailto.onSent(); setPendingMailto(null); }}>Abrir correo</Button>
+            </a>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   ADMIN PANEL
+   ============================================================ */
+/* ============================================================
+   HOUSE INFO PANEL — visible to everyone, editable only by admin
+   ============================================================ */
+function HousePanel({ houseInfo, isAdmin, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [features, setFeatures] = useState(houseInfo.features);
+  const [care, setCare] = useState(houseInfo.care);
+  const [payment, setPayment] = useState(houseInfo.payment);
+
+  useEffect(() => {
+    setFeatures(houseInfo.features); setCare(houseInfo.care); setPayment(houseInfo.payment);
+  }, [houseInfo]);
+
+  function save() {
+    onSave({ features: features.trim(), care: care.trim(), payment: payment.trim() });
+    setEditing(false);
+  }
+  function cancel() {
+    setFeatures(houseInfo.features); setCare(houseInfo.care); setPayment(houseInfo.payment);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div>
+        <Field label="Características de la casa" hint="Habitaciones, camas, baños, piscina, wifi, parking, etc.">
+          <TextArea value={features} onChange={e => setFeatures(e.target.value)} style={{ minHeight: 110 }} />
+        </Field>
+        <Field label="Indicaciones de uso y cuidado" hint="Horarios, normas, qué hacer al salir, contacto de emergencia, etc.">
+          <TextArea value={care} onChange={e => setCare(e.target.value)} style={{ minHeight: 110 }} />
+        </Field>
+        <Field label="Forma de pago" hint="Importe, cuenta o medio de pago, plazo.">
+          <TextArea value={payment} onChange={e => setPayment(e.target.value)} style={{ minHeight: 90 }} />
+        </Field>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <Button variant="subtle" onClick={cancel}>Cancelar</Button>
+          <Button onClick={save}>Guardar</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {isAdmin && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <Button size="sm" variant="ghost" icon={Edit2} onClick={() => setEditing(true)}>Editar</Button>
+        </div>
+      )}
+      <HouseSection title="Características de la casa" text={houseInfo.features} />
+      <HouseSection title="Uso y cuidado" text={houseInfo.care} />
+      <HouseSection title="Forma de pago" text={houseInfo.payment} />
+    </div>
+  );
+}
+
+function HouseSection({ title, text }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: 15.5, color: COLORS.azulejoDark, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 14, color: COLORS.ink, whiteSpace: 'pre-wrap', lineHeight: 1.5, background: COLORS.bg, borderRadius: 10, padding: 12, border: `1.5px solid ${COLORS.line}` }}>
+        {text || '—'}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ADMIN PANEL
+   ============================================================ */
+function AdminPanel({ users, pendingUsers, pendingEvents, pendingEdits, pendingReminders, blocks, onApproveUser, onRejectUser, onApproveEvent, onRejectEvent, onApproveEdit, onRejectEdit, onDeleteBlock, onDeleteEvent, onSendReminder, onSkipReminder, allEvents }) {
+  const [tab, setTab] = useState('users');
+  const tabs = [
+    { id: 'users', label: `Usuarios${pendingUsers.length ? ` (${pendingUsers.length})` : ''}` },
+    { id: 'events', label: `Reservas${pendingEvents.length ? ` (${pendingEvents.length})` : ''}` },
+    { id: 'reminders', label: `Recordatorios${pendingReminders.length ? ` (${pendingReminders.length})` : ''}` },
+    { id: 'edits', label: `Cambios${pendingEdits.length ? ` (${pendingEdits.length})` : ''}` },
+    { id: 'blocks', label: 'Bloqueos' },
+  ];
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 4, background: COLORS.bg, borderRadius: 10, padding: 4, marginBottom: 18 }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            flex: 1, padding: '8px 4px', border: 'none', borderRadius: 7, cursor: 'pointer', fontWeight: 700, fontSize: 12.5,
+            background: tab === t.id ? COLORS.azulejo : 'transparent', color: tab === t.id ? '#fff' : COLORS.inkSoft,
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {tab === 'users' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {pendingUsers.length === 0 && <EmptyState icon={User} title="Sin solicitudes pendientes" text="Las nuevas cuentas aparecerán aquí." />}
+          {pendingUsers.map(u => (
+            <div key={u.id} style={{ border: `1.5px solid ${COLORS.line}`, borderRadius: 10, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span style={{ width: 14, height: 14, borderRadius: '50%', background: u.colorHex, display: 'inline-block' }} />
+                  {u.nombre} {u.apellidos}
+                </div>
+                <div style={{ fontSize: 12.5, color: COLORS.inkSoft }}>{u.email} · {u.vinculacion}{u.vinculacionDetalle ? ` (${u.vinculacionDetalle})` : ''}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <Button size="sm" variant="danger" icon={X} onClick={() => onRejectUser(u.id)}>Rechazar</Button>
+                <Button size="sm" icon={Check} onClick={() => onApproveUser(u.id)}>Aprobar</Button>
+              </div>
+            </div>
+          ))}
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.inkSoft, marginBottom: 8, textTransform: 'uppercase' }}>Usuarios activos</div>
+            {users.filter(u => u.status === 'approved').map(u => (
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: 13.5 }}>
+                <span style={{ width: 12, height: 12, borderRadius: '50%', background: u.colorHex, display: 'inline-block' }} />
+                {u.nombre} {u.apellidos} <span style={{ color: COLORS.inkSoft }}>· {u.vinculacion}{u.vinculacionDetalle ? ` (${u.vinculacionDetalle})` : ''}{u.role === 'admin' ? ' · Admin' : ''}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'events' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {pendingEvents.length === 0 && <EmptyState icon={CalendarDays} title="Sin reservas pendientes" text="Las nuevas solicitudes de reserva aparecerán aquí." />}
+          {pendingEvents.map(ev => (
+            <div key={ev.id} style={{ border: `1.5px solid ${COLORS.line}`, borderRadius: 10, padding: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{ev.title} <span style={{ color: ev.colorHex }}>· {ev.userName}</span></div>
+                  <div style={{ fontSize: 12.5, color: COLORS.inkSoft }}>{fmtDateShort(parseKey(ev.start))} – {fmtDateShort(parseKey(ev.end))}</div>
+                  {ev.notes && <div style={{ fontSize: 13, marginTop: 4 }}>{ev.notes}</div>}
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <Button size="sm" variant="danger" icon={X} onClick={() => onRejectEvent(ev)}>Rechazar</Button>
+                  <Button size="sm" icon={Check} onClick={() => onApproveEvent(ev.id)}>Aprobar</Button>
+                </div>
+              </div>
+            </div>
+          ))}
+          <div style={{ marginTop: 6 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.inkSoft, marginBottom: 8, textTransform: 'uppercase' }}>Reservas aprobadas</div>
+            {allEvents.filter(e => e.status === 'approved').sort((a,b)=>a.start.localeCompare(b.start)).map(ev => (
+              <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: 13 }}>
+                <span>
+                  <span style={{ color: ev.colorHex, fontWeight: 700 }}>{ev.userName}</span> — {ev.title} ({fmtDateShort(parseKey(ev.start))}–{fmtDateShort(parseKey(ev.end))})
+                  {ev.reminderSent && <span style={{ color: COLORS.oliva, fontSize: 11, marginLeft: 6 }}>· recordatorio enviado</span>}
+                </span>
+                <button onClick={() => onDeleteEvent(ev.id)} style={{ background: 'none', border: 'none', color: COLORS.rojo, cursor: 'pointer' }} title="Eliminar"><X size={15} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'reminders' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {pendingReminders.length === 0 && <EmptyState icon={BellRing} title="Sin recordatorios pendientes" text="Aquí aparecerán las reservas que comiencen dentro de 3 días, para avisar al solicitante por email." />}
+          {pendingReminders.map(ev => (
+            <div key={ev.id} style={{ border: `1.5px solid ${COLORS.mostaza}`, background: '#FBF6E9', borderRadius: 10, padding: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{ev.title} <span style={{ color: ev.colorHex }}>· {ev.userName}</span></div>
+                  <div style={{ fontSize: 12.5, color: COLORS.inkSoft }}>Llega en 3 días · {fmtDateShort(parseKey(ev.start))} – {fmtDateShort(parseKey(ev.end))}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <Button size="sm" variant="subtle" onClick={() => onSkipReminder(ev.id)}>Omitir</Button>
+                  <Button size="sm" icon={Mail} onClick={() => onSendReminder(ev)}>Enviar recordatorio</Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'edits' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {pendingEdits.length === 0 && <EmptyState icon={Edit2} title="Sin cambios pendientes" text="Las solicitudes de edición de usuarios aparecerán aquí." />}
+          {pendingEdits.map(req => (
+            <div key={req.id} style={{ border: `1.5px solid ${COLORS.line}`, borderRadius: 10, padding: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{req.userName}</div>
+              <div style={{ fontSize: 13, color: COLORS.ink, margin: '5px 0' }}>{req.description}</div>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                <Button size="sm" variant="danger" icon={X} onClick={() => onRejectEdit(req.id)}>Rechazar</Button>
+                <Button size="sm" icon={Check} onClick={() => onApproveEdit(req.id)}>Aprobar</Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'blocks' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {blocks.length === 0 && <EmptyState icon={Lock} title="Sin fechas bloqueadas" text="Usa 'Bloquear fechas' en el calendario para uso personal." />}
+          {blocks.sort((a,b)=>a.start.localeCompare(b.start)).map(b => (
+            <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1.5px solid ${COLORS.line}`, borderRadius: 10, padding: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{b.title}</div>
+                <div style={{ fontSize: 12.5, color: COLORS.inkSoft }}>{fmtDateShort(parseKey(b.start))} – {fmtDateShort(parseKey(b.end))}</div>
+              </div>
+              <button onClick={() => onDeleteBlock(b.id)} style={{ background: 'none', border: 'none', color: COLORS.rojo, cursor: 'pointer' }} title="Desbloquear"><X size={16} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(AlfinachApp));

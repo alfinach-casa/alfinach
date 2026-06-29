@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Alfinach</title>
+<meta name="description" content="Alfinach — el calendario de la casa" />
+
+<!-- PWA: nombre, icono y comportamiento de app a pantalla completa -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#103E52" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Alfinach" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+
+<style>
+  html, body { margin: 0; padding: 0; background: #F7F3EA; }
+  #root { min-height: 100vh; }
+  #initial-loader {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: #F7F3EA; font-family: Georgia, serif; color: #103E52; font-size: 18px;
+    flex-direction: column; gap: 10px;
+  }
+</style>
+
+<!-- React 18 (UMD, vía CDN) -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- Babel Standalone: transpila el JSX directamente en el navegador, sin paso de build -->
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root">
+    <div id="initial-loader">Cargando Alfinach…</div>
+  </div>
+
+  <!-- Configuración e inicialización de Firebase (datos compartidos entre todos los usuarios) -->
+  <script type="module" src="firebase-config.js"></script>
+
+  <!-- Iconos propios (SVG), sin dependencias externas -->
+  <script type="text/babel" data-presets="react" src="icons.js"></script>
+  <!-- App principal -->
+  <script type="text/babel" data-presets="react" src="app.jsx"></script>
+
+  <script>
+    // Registro del Service Worker para que la PWA funcione bien al añadirla a pantalla de inicio
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
