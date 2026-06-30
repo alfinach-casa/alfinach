@@ -22,19 +22,15 @@
     flex-direction: column; gap: 10px;
   }
 </style>
-<!-- React 18 -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<!-- Babel Standalone: transpila JSX en el navegador -->
 <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
 <div id="root"><div id="initial-loader">Cargando Alfinach…</div></div>
 
-<!-- Firebase: módulo ES estándar, no necesita Babel -->
 <script type="module" src="firebase-config.js"></script>
 
-<!-- App completa: iconos + lógica, inlinados para máxima compatibilidad -->
 <script type="text/babel" data-presets="react">
 // Iconos propios en SVG, sin dependencias externas — sustituyen a lucide-react
 // Misma firma que los componentes de lucide-react: <Icon size={number} color={string} style={...} />
@@ -325,12 +321,16 @@ async function loadShared(key, fallback) {
     const db = window.__alfinachDb;
     if (!db) return fallback;
     const { doc, getDoc } = window.__firestoreFns;
-    const snap = await getDoc(doc(db, FIRESTORE_COLLECTION, key));
+    // Timeout de 5s por si Firestore no responde (ej. reglas bloqueando)
+    const snap = await Promise.race([
+      getDoc(doc(db, FIRESTORE_COLLECTION, key)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+    ]);
     if (!snap.exists()) return fallback;
     const data = snap.data();
     return data && 'value' in data ? data.value : fallback;
   } catch (e) {
-    console.error('loadShared error', key, e);
+    console.warn('loadShared fallback:', key, e.message);
     return fallback;
   }
 }
@@ -1130,7 +1130,7 @@ function AlfinachApp() {
         await new Promise((resolve) => {
           window.addEventListener('alfinach-firebase-ready', resolve, { once: true });
           // Salvaguarda: si por lo que sea el evento nunca llega, no nos quedamos bloqueados para siempre
-          setTimeout(resolve, 8000);
+          setTimeout(resolve, 3000);
         });
       }
       const [u, e, b, er, hi, session] = await Promise.all([
@@ -1161,7 +1161,7 @@ function AlfinachApp() {
       if (!window.__alfinachDb) {
         await new Promise((resolve) => {
           window.addEventListener('alfinach-firebase-ready', resolve, { once: true });
-          setTimeout(resolve, 8000);
+          setTimeout(resolve, 3000);
         });
       }
       if (cancelled) return;
