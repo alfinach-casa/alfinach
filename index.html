@@ -1252,7 +1252,12 @@ function AlfinachApp() {
     }
     return fmtDateHuman(refDate);
   })();
-  return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", background: COLORS.bg, fontFamily: "system-ui, -apple-system, sans-serif", color: COLORS.ink } }, /* @__PURE__ */ React.createElement("div", { style: { background: COLORS.azulejoDark, color: "#fff", padding: "14px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement(Home, { size: 22 }), /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "Georgia, serif", fontSize: 21, fontWeight: 700, letterSpacing: 0.3 } }, "Alfinach")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setActivePanel("house"), style: {
+  return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", background: COLORS.bg, fontFamily: "system-ui, -apple-system, sans-serif", color: COLORS.ink } }, /* @__PURE__ */ React.createElement("div", { style: { background:"linear-gradient(135deg,#1f607c,#16485d)",
+color:"#fff",
+padding:isMobile ? "14px 16px" : "18px 26px",
+boxShadow:"0 8px 24px rgba(0,0,0,.18)",
+borderBottomLeftRadius:18,
+borderBottomRightRadius:18 } }, /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement(Home, { size: 22 }), /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "Georgia, serif", fontSize: 21, fontWeight: 700, letterSpacing: 0.3 } }, "Alfinach")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setActivePanel("house"), style: {
     background: "rgba(255,255,255,0.12)",
     border: "none",
     color: "#fff",
