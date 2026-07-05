@@ -111,6 +111,53 @@ button:active{
   font-family:Inter,sans-serif;
   font-weight:600;
   font-size:17px;
+} /* =========================================================
+   LAYOUT V2
+   ========================================================= */
+
+#root{
+    max-width:1280px;
+    margin:0 auto;
+}
+
+@media (min-width:1400px){
+
+    body{
+        padding:24px;
+    }
+
+    #root{
+        border-radius:24px;
+        overflow:hidden;
+        background:white;
+        box-shadow:0 20px 60px rgba(0,0,0,.10);
+    }
+
+}
+
+/* Scroll bonito */
+
+::-webkit-scrollbar{
+    width:10px;
+}
+
+::-webkit-scrollbar-thumb{
+    background:#c8c2b7;
+    border-radius:20px;
+}
+
+::-webkit-scrollbar-track{
+    background:transparent;
+}
+
+/* Animaciones */
+
+*{
+    transition:
+        background-color .20s,
+        border-color .20s,
+        box-shadow .20s,
+        color .20s;
 }
 </style>
 <!-- React 18 (sin Babel: el código ya viene precompilado a JS plano, carga más rápida y fiable) -->
