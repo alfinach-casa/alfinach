@@ -89,7 +89,9 @@ button:active{
   font-family:Inter,sans-serif;
   font-weight:600;
   font-size:17px;
-} /* =========================================================
+} 
+  
+/* =========================================================
    LAYOUT V2
    ========================================================= */
 
@@ -137,6 +139,22 @@ button:active{
         box-shadow .20s,
         color .20s;
 }
+
+/* ---------- CAMPOS ---------- */
+
+input,
+select,
+textarea{
+    border-radius:10px;
+}
+
+input:focus,
+select:focus,
+textarea:focus{
+    outline:none;
+    box-shadow:0 0 0 3px rgba(31,96,124,.15);
+}
+
 </style>
 <!-- React 18 (sin Babel: el código ya viene precompilado a JS plano, carga más rápida y fiable) -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -163,7 +181,8 @@ function makeIcon(paths, viewBox = "0 0 24 24") {
         strokeLinejoin: "round",
         style,
         ...rest
-  /* ---------- BOTONES ---------- */
+  
+/* ---------- BOTONES ---------- */
 
 button{
     border-radius:12px !important;
