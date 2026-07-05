@@ -14,13 +14,76 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
 <style>
-  html, body { margin: 0; padding: 0; background: #F7F3EA; }
-  #root { min-height: 100vh; }
-  #initial-loader {
-    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-    background: #F7F3EA; font-family: Georgia, serif; color: #103E52; font-size: 18px;
-    flex-direction: column; gap: 10px;
-  }
+:root{
+  --bg:#f6f4ef;
+  --surface:#ffffff;
+  --primary:#1f607c;
+  --primary-dark:#16485d;
+  --accent:#c97842;
+  --success:#6f8a57;
+  --danger:#b6493a;
+  --text:#2f2b27;
+  --text-soft:#6d675e;
+  --border:#e7e1d7;
+
+  --radius:14px;
+  --shadow:0 10px 28px rgba(0,0,0,.08);
+}
+
+*,
+*::before,
+*::after{
+  box-sizing:border-box;
+}
+
+html{
+  -webkit-text-size-adjust:100%;
+}
+
+html,body{
+  margin:0;
+  padding:0;
+  overflow-x:hidden;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+
+#root{
+  min-height:100vh;
+  padding:
+      env(safe-area-inset-top)
+      env(safe-area-inset-right)
+      env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+}
+
+button{
+  transition:.18s ease;
+}
+
+button:hover{
+  transform:translateY(-1px);
+}
+
+button:active{
+  transform:translateY(0);
+}
+
+#initial-loader{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:12px;
+  background:var(--bg);
+  color:var(--primary);
+  font-family:Inter,sans-serif;
+  font-weight:600;
+  font-size:17px;
+}
 </style>
 <!-- React 18 (sin Babel: el código ya viene precompilado a JS plano, carga más rápida y fiable) -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
