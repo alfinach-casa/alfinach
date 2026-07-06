@@ -54,6 +54,30 @@ html,body{
 
 #root{
   min-height:100vh;
+  max-width:1280px;
+  margin:0 auto;
+  background:#fff;
+
+  padding:
+      env(safe-area-inset-top)
+      env(safe-area-inset-right)
+      env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+}
+
+@media (min-width:1200px){
+
+  body{
+      padding:24px;
+  }
+
+  #root{
+      border-radius:22px;
+      overflow:hidden;
+      box-shadow:0 20px 60px rgba(0,0,0,.12);
+  }
+
+}
   padding:
       env(safe-area-inset-top)
       env(safe-area-inset-right)
@@ -71,6 +95,25 @@ button:hover{
 
 button:active{
   transform:translateY(0);
+}
+
+button{
+  border-radius:12px;
+}
+
+input,
+select,
+textarea{
+  border-radius:10px;
+}
+
+::-webkit-scrollbar{
+  width:10px;
+}
+
+::-webkit-scrollbar-thumb{
+  background:#cfc7bc;
+  border-radius:20px;
 }
 
 #initial-loader{
