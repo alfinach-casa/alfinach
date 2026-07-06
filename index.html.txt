@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="es">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Alfinach</title>
+<meta name="description" content="Alfinach — el calendario de la casa" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#103E52" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Alfinach" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<style>
+:root{
+  --bg:#f6f4ef;
+  --surface:#ffffff;
+  --primary:#1f607c;
+  --primary-dark:#16485d;
+  --accent:#c97842;
+  --success:#6f8a57;
+  --danger:#b6493a;
+  --text:#2f2b27;
+  --text-soft:#6d675e;
+  --border:#e7e1d7;
+
+  --radius:14px;
+  --shadow:0 10px 28px rgba(0,0,0,.08);
+}
+
+*,
+*::before,
+*::after{
+  box-sizing:border-box;
+}
+
+html{
+  -webkit-text-size-adjust:100%;
+}
+
+html,body{
+  margin:0;
+  padding:0;
+  overflow-x:hidden;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+
+#root{
+  min-height:100vh;
+  padding:
+      env(safe-area-inset-top)
+      env(safe-area-inset-right)
+      env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+}
+
+button{
+  transition:.18s ease;
+}
+
+button:hover{
+  transform:translateY(-1px);
+}
+
+button:active{
+  transform:translateY(0);
+}
+
+#initial-loader{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:12px;
+  background:var(--bg);
+  color:var(--primary);
+  font-family:Inter,sans-serif;
+  font-weight:600;
+  font-size:17px;
+}
+</style>
+<!-- React 18 (sin Babel: el código ya viene precompilado a JS plano, carga más rápida y fiable) -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="root"><div id="initial-loader">Cargando Alfinach…</div></div>
+
+<script type="module" src="firebase-config.js"></script>
+
+<script>
+function makeIcon(paths, viewBox = "0 0 24 24") {
+  return function Icon({ size = 24, color = "currentColor", style, strokeWidth = 2, ...rest }) {
+    return React.createElement(
+      "svg",
+      {
+        width: size,
+        height: size,
+        viewBox,
+        fill: "none",
+        stroke: color,
+        strokeWidth,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        style,
+        ...rest
+      },
+      paths.map((p, i) => React.createElement("path", { key: i, d: p.d, fill: p.fill || "none" }))
+    );
+  };
+}
+const Calendar = makeIcon([
+  { d: "M3 10h18" },
+  { d: "M8 2v4" },
+  { d: "M16 2v4" },
+  { d: "M4 4h16a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" }
+]);
+const ChevronLeft = makeIcon([{ d: "M15 18l-6-6 6-6" }]);
+const ChevronRight = makeIcon([{ d: "M9 18l6-6-6-6" }]);
+const Plus = makeIcon([{ d: "M12 5v14" }, { d: "M5 12h14" }]);
+const Check = makeIcon([{ d: "M20 6 9 17l-5-5" }]);
+const X = makeIcon([{ d: "M18 6 6 18" }, { d: "M6 6l12 12" }]);
+const Lock = makeIcon([
+  { d: "M5 11h14v9H5z" },
+  { d: "M8 11V7a4 4 0 0 1 8 0v4" }
+]);
+const Edit2 = makeIcon([{ d: "M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" }]);
+const Mail = makeIcon([
+  { d: "M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" },
+  { d: "M3 6l9 7 9-7" }
+]);
+const User = makeIcon([
+  { d: "M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z" },
+  { d: "M4 21c0-4 3.5-7 8-7s8 3 8 7" }
+]);
+const LogOut = makeIcon([
+  { d: "M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4" },
+  { d: "M16 17l5-5-5-5" },
+  { d: "M21 12H9" }
+]);
+const Clock = makeIcon([
+  { d: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" },
+  { d: "M12 7v5l3 3" }
+]);
+const AlertCircle = makeIcon([
+  { d: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" },
+  { d: "M12 8v5" },
+  { d: "M12 16.2v.1" }
+]);
+const Home = makeIcon([
+  { d: "M3 11.5 12 4l9 7.5" },
+  { d: "M5 10v10h14V10" },
+  { d: "M9 20v-6h6v6" }
+]);
+const Shield = makeIcon([
+  { d: "M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6Z" }
+]);
+const CalendarDays = makeIcon([
+  { d: "M3 10h18" },
+  { d: "M8 2v4" },
+  { d: "M16 2v4" },
+  { d: "M4 4h16a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" },
+  { d: "M8 14h.01" },
+  { d: "M12 14h.01" },
+  { d: "M16 14h.01" }
+]);
+const CalendarRange = makeIcon([
+  { d: "M3 10h18" },
+  { d: "M8 2v4" },
+  { d: "M16 2v4" },
+  { d: "M4 4h16a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" },
+  { d: "M8 14h2" },
+  { d: "M14 14h2" }
+]);
+const List = makeIcon([
+  { d: "M8 6h13" },
+  { d: "M8 12h13" },
+  { d: "M8 18h13" },
+  { d: "M3 6h.01" },
+  { d: "M3 12h.01" },
+  { d: "M3 18h.01" }
+]);
+const Info = makeIcon([
+  { d: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" },
+  { d: "M12 16v-5" },
+  { d: "M12 8v.1" }
+]);
+const BellRing = makeIcon([
+  { d: "M6 8a6 6 0 0 1 12 0c0 3 1 4.5 2 6H4c1-1.5 2-3 2-6Z" },
+  { d: "M10.3 21a1.94 1.94 0 0 0 3.4 0" },
+  { d: "M4 4 2 6" },
+  { d: "M20 4l2 2" }
+]);
+const { useState, useEffect, useMemo, useCallback } = React;
+const COLORS = {
+  bg: "#F7F3EA",
+  bgCard: "#FFFFFF",
+  ink: "#2B2620",
+  inkSoft: "#6B6354",
+  azulejo: "#1B5E7A",
+  azulejoDark: "#103E52",
+  teja: "#C8703D",
+  tejaDark: "#A85A2C",
+  oliva: "#6B7F4F",
+  mostaza: "#D4A23C",
+  rojo: "#B6493A",
+  line: "#E4DCC8",
+  lineDark: "#D6CBAE"
+};
+const USER_COLOR_PALETTE = [
+  { name: "Azulejo", hex: "#1B5E7A" },
+  { name: "Teja", hex: "#C8703D" },
+  { name: "Oliva", hex: "#6B7F4F" },
+  { name: "Mostaza", hex: "#D4A23C" },
+  { name: "Granate", hex: "#8C3A4B" },
+  { name: "Lavanda", hex: "#6D5B8C" },
+  { name: "Pino", hex: "#3B6B5E" },
+  { name: "Coral", hex: "#C9694F" },
+  { name: "Petr\xF3leo", hex: "#2A7F7E" },
+  { name: "Ciruela", hex: "#7A4B6B" }
+];
+const FESTIVOS_VALENCIA = {
+  "2025-01-01": "A\xF1o Nuevo",
+  "2025-01-06": "Reyes",
+  "2025-01-22": "San Vicente M\xE1rtir",
+  "2025-03-19": "San Jos\xE9",
+  "2025-04-17": "Jueves Santo",
+  "2025-04-18": "Viernes Santo",
+  "2025-04-21": "Lunes de Pascua",
+  "2025-05-01": "D\xEDa del Trabajo",
+  "2025-08-15": "Asunci\xF3n de la Virgen",
+  "2025-10-09": "D\xEDa de la Comunidad Valenciana",
+  "2025-11-01": "Todos los Santos",
+  "2025-12-06": "D\xEDa de la Constituci\xF3n",
+  "2025-12-08": "Inmaculada Concepci\xF3n",
+  "2025-12-25": "Navidad",
+  "2026-01-01": "A\xF1o Nuevo",
+  "2026-01-06": "Reyes",
+  "2026-01-22": "San Vicente M\xE1rtir",
+  "2026-03-19": "San Jos\xE9",
+  "2026-04-02": "Jueves Santo",
+  "2026-04-03": "Viernes Santo",
+  "2026-04-06": "Lunes de Pascua",
+  "2026-05-01": "D\xEDa del Trabajo",
+  "2026-08-15": "Asunci\xF3n de la Virgen",
+  "2026-10-09": "D\xEDa de la Comunidad Valenciana",
+  "2026-11-01": "Todos los Santos",
+  "2026-12-07": "Puente Constituci\xF3n (trasladado)",
+  "2026-12-08": "Inmaculada Concepci\xF3n",
+  "2026-12-25": "Navidad"
+};
+const VINCULACIONES = ["Familia", "Club/Asociaci\xF3n", "Amigos de la familia", "Otro"];
+const DEFAULT_HOUSE_INFO = {
+  features: `La casa dispone de 13 plazas en cama (hay algunas colchonetas hinchables disponibles para plazas adicionales).
+
+Hay dos neveras: la de la izquierda est\xE1 siempre encendida y se usa habitualmente \u2014 la otra no debe tocarse.
+
+La cocina est\xE1 completamente equipada: cuberter\xEDa, sartenes, ollas, etc. Se puede usar el lavavajillas (las pastillas est\xE1n debajo del fregadero).
+
+Terraza con columpio, sof\xE1s y sillas exteriores.`,
+  care: `AL LLEGAR
+1. Subir la llave del gas para el agua caliente.
+   \xB7 Posici\xF3n en paralelo al tubo: abierto.
+   \xB7 Posici\xF3n cruzada al tubo: cerrado.
+2. La nevera de la izquierda est\xE1 siempre encendida; no tocar la otra.
+3. Sacar los cojines del columpio y los sof\xE1s y sillas a la terraza si hace falta.
+
+AL SALIR
+1. Bajar la llave del gas para el agua caliente (mismas posiciones que al llegar).
+2. Meter todas las sillas y cojines utilizados y dejarlos en su sitio.
+3. Comprobar que todas las persianas y ventanas de la casa est\xE1n bien cerradas.
+4. Comprobar que todos los radiadores est\xE1n desenchufados.
+5. Comprobar que los ventiladores est\xE1n apagados.
+6. Comprobar que las duchas est\xE1n bien ordenadas (jabones en su sitio, manguera recogida).
+7. Cerrar con llave las puertas de la casa al salir (primero la de atr\xE1s, luego la de delante).
+
+OTRAS INDICACIONES
+\xB7 Cada persona debe traer sus propias s\xE1banas o saco y toalla.
+\xB7 Informar de cualquier desperfecto, aver\xEDa u otra incidencia de inter\xE9s ocurrida durante la estancia, llamando o escribiendo al 637 45 21 33.`,
+  payment: `Realizar el pago por Bizum al n\xFAmero 637 45 21 33, con la cantidad correspondiente seg\xFAn la tarifa.
+
+TARIFAS ALFINACH
+\xB7 Clubes de se\xF1ores y universitarios: 12 \u20AC/noche por persona.
+\xB7 Matrimonios y familias (de lunes a jueves): 20 \u20AC/persona/noche + 30 \u20AC de limpieza.
+\xB7 Matrimonios y familias (fin de semana y puentes): 25 \u20AC/persona/noche + 30 \u20AC de limpieza.`
+};
+const LEGACY_PLACEHOLDER_HOUSE_INFO = {
+  features: "Aqu\xED puedes describir la casa: n\xFAmero de habitaciones y camas, ba\xF1os, si tiene piscina, jard\xEDn, aire acondicionado/calefacci\xF3n, wifi, parking, etc.",
+  care: "Aqu\xED puedes indicar las normas de uso y cuidado: horarios de entrada/salida, qu\xE9 hacer con la basura, c\xF3mo dejar la casa al marchar, qu\xE9 no se puede hacer, contacto en caso de emergencia, etc.",
+  payment: "Aqu\xED puedes indicar c\xF3mo se debe realizar el pago de la estancia: importe, n\xFAmero de cuenta o medio de pago, y plazo para realizarlo."
+};
+const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const DIAS_SEMANA = ["Lun", "Mar", "Mi\xE9", "Jue", "Vie", "S\xE1b", "Dom"];
+const DIAS_SEMANA_LARGO = ["Lunes", "Martes", "Mi\xE9rcoles", "Jueves", "Viernes", "S\xE1bado", "Domingo"];
+function pad(n) {
+  return n < 10 ? "0" + n : "" + n;
+}
+function dateKey(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function parseKey(k) {
+  const [y, m, d] = k.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+function addDays(d, n) {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+function startOfWeekMonday(d) {
+  const r = new Date(d);
+  const day = r.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  r.setDate(r.getDate() + diff);
+  return r;
+}
+function sameDay(a, b) {
+  return dateKey(a) === dateKey(b);
+}
+function rangeOverlaps(aStart, aEnd, bStart, bEnd) {
+  return aStart <= bEnd && bStart <= aEnd;
+}
+function fmtDateHuman(d) {
+  return `${DIAS_SEMANA_LARGO[(d.getDay() + 6) % 7]} ${d.getDate()} de ${MESES[d.getMonth()].toLowerCase()} de ${d.getFullYear()}`;
+}
+function fmtDateShort(d) {
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+function useIsMobile(breakpoint = 560) {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < breakpoint : false);
+  useEffect(() => {
+    function onResize() {
+      setIsMobile(window.innerWidth < breakpoint);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [breakpoint]);
+  return isMobile;
+}
+function uid(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+function simpleHash(str) {
+  let h1 = 3735928559, h2 = 1103547991;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ h1 >>> 16, 2246822507) ^ Math.imul(h2 ^ h2 >>> 13, 3266489909);
+  h2 = Math.imul(h2 ^ h2 >>> 16, 2246822507) ^ Math.imul(h1 ^ h1 >>> 13, 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+const ADMIN_EMAIL_SEED = null;
+const K_USERS = "users";
+const K_EVENTS = "events";
+const K_BLOCKS = "blocks";
+const K_EDITS = "edit_requests";
+const K_HOUSE = "house_info";
+const K_SESSION = "alfinach_session";
+const FIRESTORE_COLLECTION = "alfinach";
+async function loadShared(key, fallback) {
+  try {
+    const db = window.__alfinachDb;
+    if (!db) return fallback;
+    const { doc, getDoc } = window.__firestoreFns;
+    const snap = await Promise.race([
+      getDoc(doc(db, FIRESTORE_COLLECTION, key)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5e3))
+    ]);
+    if (!snap.exists()) return fallback;
+    const data = snap.data();
+    return data && "value" in data ? data.value : fallback;
+  } catch (e) {
+    console.warn("loadShared fallback:", key, e.message);
+    return fallback;
+  }
+}
+async function saveShared(key, value) {
+  try {
+    const db = window.__alfinachDb;
+    if (!db) return;
+    const { doc, setDoc } = window.__firestoreFns;
+    await setDoc(doc(db, FIRESTORE_COLLECTION, key), { value });
+  } catch (e) {
+    console.error("saveShared error", key, e);
+  }
+}
+async function loadPersonal(key, fallback) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+async function savePersonal(key, value) {
+  try {
+    if (value === null || value === void 0) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error("savePersonal error", key, e);
+  }
+}
+function buildApprovalEmail(user) {
+  const subject = `Alfinach \u2014 Tu acceso ha sido aprobado`;
+  const body = `Hola ${user.nombre},
+
+\xA1Buenas noticias! Tu solicitud de acceso a Alfinach ha sido aprobada.
+
+Ya puedes entrar en la app con tu email (${user.email}) y la contrase\xF1a que elegiste, ver el calendario de la casa y enviar tus solicitudes de reserva.
+
+Tu color asignado en el calendario es: ${user.colorName}.
+
+Nos vemos en Alfinach.
+
+Un abrazo.`;
+  return { subject, body };
+}
+function buildEventApprovalEmail(user, event) {
+  const subject = `Alfinach \u2014 Tu reserva ha sido aprobada`;
+  const body = `Hola ${user.nombre},
+
+Tu solicitud de reserva en Alfinach ha sido aprobada:
+
+\xB7 T\xEDtulo: ${event.title}
+\xB7 Fechas: ${fmtDateHuman(parseKey(event.start))}${event.start !== event.end ? ` \u2192 ${fmtDateHuman(parseKey(event.end))}` : ""}
+${event.notes ? `\xB7 Notas: ${event.notes}
+` : ""}
+Ya aparece en el calendario de la casa con tu color (${user.colorName}).
+
+\xA1Que la disfrut\xE9is!`;
+  return { subject, body };
+}
+function buildEventRejectionEmail(user, event, reason) {
+  const subject = `Alfinach \u2014 Sobre tu solicitud de reserva`;
+  const body = `Hola ${user.nombre},
+
+Tu solicitud de reserva en Alfinach para las fechas ${fmtDateHuman(parseKey(event.start))}${event.start !== event.end ? ` \u2192 ${fmtDateHuman(parseKey(event.end))}` : ""} no ha podido aprobarse${reason ? `:
+
+${reason}
+` : "."}
+
+Puedes enviar una nueva solicitud con otras fechas cuando quieras.
+
+Un saludo.`;
+  return { subject, body };
+}
+function buildPreArrivalReminderEmail(user, event, paymentInfo) {
+  const subject = `Alfinach \u2014 Recordatorio antes de tu estancia (${fmtDateShort(parseKey(event.start))})`;
+  const body = `Hola ${user.nombre},
+
+Te escribo para recordarte que tienes una estancia confirmada en Alfinach:
+
+\xB7 T\xEDtulo: ${event.title}
+\xB7 Fechas: ${fmtDateHuman(parseKey(event.start))}${event.start !== event.end ? ` \u2192 ${fmtDateHuman(parseKey(event.end))}` : ""}
+
+Antes de la llegada, necesito que me confirmes respondiendo a este mismo correo el n\xFAmero de plazas/personas que finalmente ser\xE9is.
+
+Recuerda tambi\xE9n realizar el pago correspondiente a la estancia${paymentInfo ? `:
+
+${paymentInfo}` : ' seg\xFAn lo indicado en la app, en la pesta\xF1a "La casa".'}
+
+Por \xFAltimo, si al terminar la estancia detect\xE1is alg\xFAn desperfecto o incidencia en la casa, por favor h\xE1zmelo saber respondiendo a este mismo correo.
+
+\xA1Que disfrut\xE9is de la estancia!`;
+  return { subject, body };
+}
+function buildEditApprovalEmail(user, description) {
+  const subject = `Alfinach \u2014 Cambio confirmado`;
+  const body = `Hola ${user.nombre},
+
+El cambio que solicitaste ha sido confirmado:
+
+${description}
+
+Ya est\xE1 actualizado en Alfinach.
+
+Un saludo.`;
+  return { subject, body };
+}
+function mailtoHref(toEmail, subject, body) {
+  return `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+function Button({ children, onClick, variant = "primary", size = "md", icon: Icon, disabled, type = "button", full }) {
+  const base = {
+    primary: { bg: COLORS.azulejo, color: "#fff", border: COLORS.azulejo },
+    teja: { bg: COLORS.teja, color: "#fff", border: COLORS.teja },
+    ghost: { bg: "transparent", color: COLORS.azulejo, border: COLORS.azulejo },
+    danger: { bg: "transparent", color: COLORS.rojo, border: COLORS.rojo },
+    subtle: { bg: COLORS.bg, color: COLORS.ink, border: COLORS.line }
+  }[variant];
+  const pad2 = size === "sm" ? "6px 12px" : "10px 18px";
+  const fontSize = size === "sm" ? 13 : 14.5;
+  return /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type,
+      onClick,
+      disabled,
+      style: {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        background: base.bg,
+        color: base.color,
+        border: `1.5px solid ${base.border}`,
+        borderRadius: 8,
+        padding: pad2,
+        fontSize,
+        fontWeight: 600,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.45 : 1,
+        fontFamily: "inherit",
+        width: full ? "100%" : "auto",
+        transition: "transform 0.08s ease, opacity 0.15s ease",
+        whiteSpace: "nowrap"
+      },
+      onMouseDown: (e) => {
+        if (!disabled) e.currentTarget.style.transform = "scale(0.97)";
+      },
+      onMouseUp: (e) => {
+        e.currentTarget.style.transform = "scale(1)";
+      },
+      onMouseLeave: (e) => {
+        e.currentTarget.style.transform = "scale(1)";
+      }
+    },
+    Icon && /* @__PURE__ */ React.createElement(Icon, { size: size === "sm" ? 14 : 16 }),
+    children
+  );
+}
+function Field({ label, children, hint }) {
+  return /* @__PURE__ */ React.createElement("label", { style: { display: "block", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, fontWeight: 700, color: COLORS.inkSoft, marginBottom: 5, letterSpacing: 0.3, textTransform: "uppercase" } }, label), children, hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: COLORS.inkSoft, marginTop: 4 } }, hint));
+}
+const inputStyle = {
+  width: "100%",
+  padding: "9px 12px",
+  borderRadius: 8,
+  border: `1.5px solid ${COLORS.line}`,
+  fontSize: 14.5,
+  fontFamily: "inherit",
+  color: COLORS.ink,
+  background: "#fff",
+  boxSizing: "border-box",
+  outline: "none"
+};
+function Input(props) {
+  return /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      ...props,
+      style: { ...inputStyle, ...props.style || {} },
+      onFocus: (e) => {
+        e.target.style.borderColor = COLORS.azulejo;
+      },
+      onBlur: (e) => {
+        e.target.style.borderColor = COLORS.line;
+      }
+    }
+  );
+}
+function Select(props) {
+  return /* @__PURE__ */ React.createElement("select", { ...props, style: { ...inputStyle, ...props.style || {} } });
+}
+function TextArea(props) {
+  return /* @__PURE__ */ React.createElement("textarea", { ...props, style: { ...inputStyle, minHeight: 70, resize: "vertical", ...props.style || {} } });
+}
+function Badge({ children, color, bg }) {
+  return /* @__PURE__ */ React.createElement("span", { style: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: 11.5,
+    fontWeight: 700,
+    padding: "3px 9px",
+    borderRadius: 20,
+    color: color || "#fff",
+    background: bg || COLORS.azulejo,
+    letterSpacing: 0.2,
+    textTransform: "uppercase"
+  } }, children);
+}
+function Modal({ title, onClose, children, width = 480 }) {
+  return /* @__PURE__ */ React.createElement("div", { style: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(43,38,32,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1e3,
+    padding: 16
+  }, onClick: onClose }, /* @__PURE__ */ React.createElement("div", { onClick: (e) => e.stopPropagation(), style: {
+    background: "#fff",
+    borderRadius: 16,
+    width: "100%",
+    maxWidth: width,
+    maxHeight: "88vh",
+    overflowY: "auto",
+    boxShadow: "0 20px 60px rgba(43,38,32,0.25)"
+  } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: `1.5px solid ${COLORS.line}`, position: "sticky", top: 0, background: "#fff", borderRadius: "16px 16px 0 0" } }, /* @__PURE__ */ React.createElement("h3", { style: { margin: 0, fontFamily: "Georgia, serif", fontSize: 19, color: COLORS.azulejoDark } }, title), /* @__PURE__ */ React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", cursor: "pointer", color: COLORS.inkSoft, padding: 4 } }, /* @__PURE__ */ React.createElement(X, { size: 20 }))), /* @__PURE__ */ React.createElement("div", { style: { padding: 22 } }, children)));
+}
+function EmptyState({ icon: Icon, title, text }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "40px 20px", color: COLORS.inkSoft } }, /* @__PURE__ */ React.createElement(Icon, { size: 32, style: { opacity: 0.4, marginBottom: 10 } }), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: COLORS.ink, marginBottom: 4 } }, title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5 } }, text));
+}
+function AuthScreen({ users, onLogin, onRegister }) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [apellidos, setApellidos] = useState("");
+  const [vinculacion, setVinculacion] = useState(VINCULACIONES[0]);
+  const [vinculacionDetalle, setVinculacionDetalle] = useState("");
+  const [colorHex, setColorHex] = useState(USER_COLOR_PALETTE[0].hex);
+  const usedColors = new Set(users.filter((u) => u.status === "approved").map((u) => u.colorHex));
+  const familiaUsers = users.filter((u) => u.status === "approved" && u.vinculacion === "Familia");
+  function handleLogin(e) {
+    e.preventDefault();
+    setError("");
+    const user = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+    if (!user) {
+      setError("No existe ninguna cuenta con ese email.");
+      return;
+    }
+    if (user.passwordHash !== simpleHash(password)) {
+      setError("Contrase\xF1a incorrecta.");
+      return;
+    }
+    if (user.status === "pending") {
+      setError("Tu cuenta todav\xEDa est\xE1 pendiente de aprobaci\xF3n por el administrador.");
+      return;
+    }
+    if (user.status === "rejected") {
+      setError("Tu solicitud de acceso no fue aprobada. Contacta con el administrador.");
+      return;
+    }
+    onLogin(user);
+  }
+  function handleRegister(e) {
+    e.preventDefault();
+    setError("");
+    if (!nombre.trim() || !apellidos.trim() || !email.trim() || !password) {
+      setError("Rellena todos los campos.");
+      return;
+    }
+    if (password.length < 4) {
+      setError("La contrase\xF1a debe tener al menos 4 caracteres.");
+      return;
+    }
+    if (users.some((u) => u.email.toLowerCase() === email.trim().toLowerCase())) {
+      setError("Ya existe una cuenta con ese email.");
+      return;
+    }
+    if (vinculacion === "Amigos de la familia" && !vinculacionDetalle) {
+      setError("Indica de qui\xE9n de la familia es amigo/a.");
+      return;
+    }
+    const colorObj = USER_COLOR_PALETTE.find((c) => c.hex === colorHex) || USER_COLOR_PALETTE[0];
+    const isFirstUser = users.length === 0;
+    const newUser = {
+      id: uid("user"),
+      nombre: nombre.trim(),
+      apellidos: apellidos.trim(),
+      vinculacion,
+      vinculacionDetalle: vinculacion === "Amigos de la familia" ? vinculacionDetalle : "",
+      email: email.trim(),
+      passwordHash: simpleHash(password),
+      colorHex,
+      colorName: colorObj.name,
+      role: isFirstUser ? "admin" : "member",
+      status: isFirstUser ? "approved" : "pending",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    onRegister(newUser);
+    if (isFirstUser) {
+      setInfo("Cuenta creada. Como eres la primera persona registrada, eres la administradora de Alfinach.");
+    } else {
+      setInfo("\xA1Solicitud enviada! Cuando el administrador la apruebe, podr\xE1s entrar con tu email y contrase\xF1a.");
+    }
+  }
+  return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", background: `linear-gradient(160deg, ${COLORS.bg} 0%, #EFE7D3 100%)`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'Iowan Old Style', 'Palatino Linotype', Georgia, serif" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "100%", maxWidth: 420 } }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginBottom: 26 } }, /* @__PURE__ */ React.createElement("div", { style: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 60,
+    height: 60,
+    borderRadius: "14px",
+    background: COLORS.azulejo,
+    marginBottom: 14,
+    boxShadow: `0 8px 24px rgba(27,94,122,0.35)`
+  } }, /* @__PURE__ */ React.createElement(Home, { size: 28, color: "#fff" })), /* @__PURE__ */ React.createElement("h1", { style: { margin: 0, fontSize: 34, color: COLORS.azulejoDark, letterSpacing: 0.5 } }, "Alfinach"), /* @__PURE__ */ React.createElement("div", { style: { color: COLORS.inkSoft, fontSize: 14, marginTop: 4, fontFamily: "system-ui, sans-serif" } }, "El calendario de la casa")), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, padding: 26, boxShadow: "0 16px 40px rgba(43,38,32,0.12)", fontFamily: "system-ui, -apple-system, sans-serif" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, background: COLORS.bg, borderRadius: 10, padding: 4, marginBottom: 20 } }, ["login", "register"].map((m) => /* @__PURE__ */ React.createElement("button", { key: m, onClick: () => {
+    setMode(m);
+    setError("");
+    setInfo("");
+  }, style: {
+    flex: 1,
+    padding: "8px 0",
+    border: "none",
+    borderRadius: 7,
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: 13.5,
+    background: mode === m ? COLORS.azulejo : "transparent",
+    color: mode === m ? "#fff" : COLORS.inkSoft,
+    fontFamily: "inherit",
+    transition: "all 0.15s"
+  } }, m === "login" ? "Entrar" : "Crear cuenta"))), error && /* @__PURE__ */ React.createElement("div", { style: { background: "#FBEAE7", color: COLORS.rojo, padding: "9px 12px", borderRadius: 8, fontSize: 13, marginBottom: 14, display: "flex", gap: 8, alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 15, style: { flexShrink: 0, marginTop: 1 } }), /* @__PURE__ */ React.createElement("span", null, error)), info && /* @__PURE__ */ React.createElement("div", { style: { background: "#EBF1E5", color: COLORS.oliva, padding: "9px 12px", borderRadius: 8, fontSize: 13, marginBottom: 14, display: "flex", gap: 8, alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement(Check, { size: 15, style: { flexShrink: 0, marginTop: 1 } }), /* @__PURE__ */ React.createElement("span", null, info)), mode === "login" ? /* @__PURE__ */ React.createElement("form", { onSubmit: handleLogin }, /* @__PURE__ */ React.createElement(Field, { label: "Email" }, /* @__PURE__ */ React.createElement(Input, { type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "tucorreo@email.com", required: true })), /* @__PURE__ */ React.createElement(Field, { label: "Contrase\xF1a" }, /* @__PURE__ */ React.createElement(Input, { type: "password", value: password, onChange: (e) => setPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", required: true })), /* @__PURE__ */ React.createElement(Button, { type: "submit", full: true }, "Entrar")) : /* @__PURE__ */ React.createElement("form", { onSubmit: handleRegister }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Nombre" }, /* @__PURE__ */ React.createElement(Input, { value: nombre, onChange: (e) => setNombre(e.target.value), required: true }))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Apellidos" }, /* @__PURE__ */ React.createElement(Input, { value: apellidos, onChange: (e) => setApellidos(e.target.value), required: true })))), /* @__PURE__ */ React.createElement(Field, { label: "Vinculaci\xF3n con la casa" }, /* @__PURE__ */ React.createElement(Select, { value: vinculacion, onChange: (e) => setVinculacion(e.target.value) }, VINCULACIONES.map((v) => /* @__PURE__ */ React.createElement("option", { key: v, value: v }, v)))), vinculacion === "Amigos de la familia" && /* @__PURE__ */ React.createElement(Field, { label: "\xBFDe qui\xE9n de la familia?" }, familiaUsers.length > 0 ? /* @__PURE__ */ React.createElement(Select, { value: vinculacionDetalle, onChange: (e) => setVinculacionDetalle(e.target.value), required: true }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Selecciona\u2026"), familiaUsers.map((u) => /* @__PURE__ */ React.createElement("option", { key: u.id, value: `${u.nombre} ${u.apellidos}` }, u.nombre, " ", u.apellidos))) : /* @__PURE__ */ React.createElement(Input, { value: vinculacionDetalle, onChange: (e) => setVinculacionDetalle(e.target.value), placeholder: "Nombre de la persona de la familia", required: true })), /* @__PURE__ */ React.createElement(Field, { label: "Email" }, /* @__PURE__ */ React.createElement(Input, { type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement(Field, { label: "Contrase\xF1a" }, /* @__PURE__ */ React.createElement(Input, { type: "password", value: password, onChange: (e) => setPassword(e.target.value), required: true })), /* @__PURE__ */ React.createElement(Field, { label: "Tu color en el calendario" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } }, USER_COLOR_PALETTE.map((c) => {
+    const taken = usedColors.has(c.hex);
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: c.hex,
+        type: "button",
+        disabled: taken,
+        title: taken ? `${c.name} (ya en uso)` : c.name,
+        onClick: () => setColorHex(c.hex),
+        style: {
+          width: 30,
+          height: 30,
+          borderRadius: "50%",
+          background: c.hex,
+          border: colorHex === c.hex ? `3px solid ${COLORS.ink}` : "3px solid transparent",
+          cursor: taken ? "not-allowed" : "pointer",
+          opacity: taken ? 0.25 : 1,
+          position: "relative"
+        }
+      }
+    );
+  }))), /* @__PURE__ */ React.createElement(Button, { type: "submit", full: true }, "Solicitar acceso"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: COLORS.inkSoft, marginTop: 10, textAlign: "center" } }, "Tu cuenta deber\xE1 ser aprobada por el administrador antes de poder entrar.")))));
+}
+function getEventsForDay(events, blocks, day) {
+  const k = dateKey(day);
+  const evs = events.filter((e) => e.status === "approved" && k >= e.start && k <= e.end);
+  const bls = blocks.filter((b) => k >= b.start && k <= b.end);
+  return { evs, bls };
+}
+function DayCellContent({ evs, bls, compact, dotsOnly }) {
+  const items = [...bls.map((b) => ({ type: "block", item: b })), ...evs.map((e) => ({ type: "event", item: e }))];
+  if (items.length === 0) return null;
+  if (dotsOnly) {
+    const maxDots = 4;
+    return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 2, marginTop: 2, lineHeight: 0 } }, items.slice(0, maxDots).map((it, i) => /* @__PURE__ */ React.createElement("span", { key: i, style: {
+      width: 5,
+      height: 5,
+      borderRadius: "50%",
+      flexShrink: 0,
+      background: it.type === "block" ? "#3a3530" : it.item.colorHex
+    } })), items.length > maxDots && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, color: COLORS.inkSoft, lineHeight: "5px" } }, "+", items.length - maxDots));
+  }
+  const maxShow = compact ? 2 : 4;
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 2, marginTop: 3, overflow: "hidden", flex: 1, minHeight: 0 } }, items.slice(0, maxShow).map((it, i) => it.type === "block" ? /* @__PURE__ */ React.createElement("div", { key: i, style: { fontSize: 10.5, background: "#3a3530", color: "#fff", borderRadius: 4, padding: "1px 5px", display: "flex", alignItems: "center", gap: 3, overflow: "hidden", whiteSpace: "nowrap", flexShrink: 0 } }, /* @__PURE__ */ React.createElement(Lock, { size: 9, style: { flexShrink: 0 } }), /* @__PURE__ */ React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis" } }, it.item.title || "Uso personal")) : /* @__PURE__ */ React.createElement("div", { key: i, style: { fontSize: 10.5, background: it.item.colorHex + "22", color: it.item.colorHex, borderLeft: `3px solid ${it.item.colorHex}`, borderRadius: 4, padding: "1px 5px 1px 4px", fontWeight: 700, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 0 } }, it.item.userName)), items.length > maxShow && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: COLORS.inkSoft, paddingLeft: 4, flexShrink: 0 } }, "+", items.length - maxShow, " m\xE1s"));
+}
+function YearView({ year, events, blocks, onSelectDay, onMonthClick }) {
+  const isMobile = useIsMobile();
+  const months = Array.from({ length: 12 }, (_, m) => m);
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(230px, 1fr))", gap: 16 } }, months.map((m) => {
+    const first = new Date(year, m, 1);
+    const startOffset = (first.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, m + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < startOffset; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, m, d));
+    return /* @__PURE__ */ React.createElement("div", { key: m, style: { background: "#fff", borderRadius: 12, padding: 12, border: `1.5px solid ${COLORS.line}`, boxSizing: "border-box", minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { onClick: () => onMonthClick(m), style: { fontFamily: "Georgia, serif", fontWeight: 700, color: COLORS.azulejoDark, marginBottom: 8, cursor: "pointer", fontSize: 15 } }, MESES[m]), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 } }, DIAS_SEMANA.map((d) => /* @__PURE__ */ React.createElement("div", { key: d, style: { fontSize: 9.5, color: COLORS.inkSoft, textAlign: "center", fontWeight: 700 } }, d[0])), cells.map((day, i) => {
+      if (!day) return /* @__PURE__ */ React.createElement("div", { key: i });
+      const k = dateKey(day);
+      const { evs, bls } = getEventsForDay(events, blocks, day);
+      const isFestivo = !!FESTIVOS_VALENCIA[k];
+      const isToday = sameDay(day, /* @__PURE__ */ new Date());
+      const hasStuff = evs.length > 0 || bls.length > 0;
+      let bg = "transparent";
+      if (bls.length) bg = "#3a3530";
+      else if (evs.length) bg = evs[0].colorHex;
+      return /* @__PURE__ */ React.createElement("div", { key: i, onClick: () => onSelectDay(day), title: isFestivo ? FESTIVOS_VALENCIA[k] : "", style: {
+        position: "relative",
+        textAlign: "center",
+        fontSize: 10.5,
+        padding: "3px 0",
+        borderRadius: 5,
+        cursor: "pointer",
+        color: hasStuff ? "#fff" : isFestivo ? COLORS.teja : COLORS.ink,
+        background: hasStuff ? bg : isFestivo ? "#FBEEE3" : "transparent",
+        fontWeight: isToday ? 800 : isFestivo ? 700 : 400,
+        border: isToday ? `1.5px solid ${COLORS.azulejo}` : "none"
+      } }, day.getDate());
+    })));
+  }));
+}
+function MonthView({ refDate, events, blocks, onSelectDay }) {
+  const isMobile = useIsMobile();
+  const year = refDate.getFullYear(), month = refDate.getMonth();
+  const first = new Date(year, month, 1);
+  const startOffset = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+  const cellHeight = isMobile ? 56 : 92;
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 1, marginBottom: 4 } }, (isMobile ? DIAS_SEMANA.map((d) => d[0]) : DIAS_SEMANA_LARGO).map((d, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { fontSize: isMobile ? 10.5 : 11.5, fontWeight: 700, color: COLORS.inkSoft, textAlign: "center", padding: "6px 0", textTransform: "uppercase", letterSpacing: 0.5 } }, d))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: isMobile ? 3 : 6 } }, cells.map((day, i) => {
+    if (!day) return /* @__PURE__ */ React.createElement("div", { key: i, style: { height: cellHeight } });
+    const k = dateKey(day);
+    const { evs, bls } = getEventsForDay(events, blocks, day);
+    const isFestivo = FESTIVOS_VALENCIA[k];
+    const isToday = sameDay(day, /* @__PURE__ */ new Date());
+    return /* @__PURE__ */ React.createElement("div", { key: i, onClick: () => onSelectDay(day), style: {
+      height: cellHeight,
+      boxSizing: "border-box",
+      overflow: "hidden",
+      position: "relative",
+      background: isFestivo ? "#FBF2E8" : "#fff",
+      borderRadius: isMobile ? 7 : 9,
+      padding: isMobile ? "4px 4px" : "6px 7px",
+      border: isToday ? `2px solid ${COLORS.azulejo}` : `1.5px solid ${COLORS.line}`,
+      cursor: "pointer",
+      display: "flex",
+      flexDirection: "column",
+      minWidth: 0
+    } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: isMobile ? 12 : 13.5, fontWeight: isToday ? 800 : 600, color: isFestivo ? COLORS.teja : COLORS.ink } }, day.getDate())), isFestivo && !isMobile && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9.5, color: COLORS.teja, fontWeight: 600, lineHeight: 1.1, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 } }, isFestivo), isFestivo && isMobile && /* @__PURE__ */ React.createElement("span", { style: { width: 5, height: 5, borderRadius: "50%", background: COLORS.teja, position: "absolute", top: 6, right: 6 } }), /* @__PURE__ */ React.createElement(DayCellContent, { evs, bls, compact: true, dotsOnly: isMobile }));
+  })));
+}
+function WeekView({ refDate, events, blocks, onSelectDay }) {
+  const isMobile = useIsMobile();
+  const start = startOfWeekMonday(refDate);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  if (isMobile) {
+    return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, days.map((day, i) => {
+      const k = dateKey(day);
+      const { evs, bls } = getEventsForDay(events, blocks, day);
+      const isFestivo = FESTIVOS_VALENCIA[k];
+      const isToday = sameDay(day, /* @__PURE__ */ new Date());
+      return /* @__PURE__ */ React.createElement("div", { key: i, onClick: () => onSelectDay(day), style: {
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        boxSizing: "border-box",
+        background: isFestivo ? "#FBF2E8" : "#fff",
+        borderRadius: 10,
+        padding: "8px 10px",
+        border: isToday ? `2px solid ${COLORS.azulejo}` : `1.5px solid ${COLORS.line}`,
+        cursor: "pointer"
+      } }, /* @__PURE__ */ React.createElement("div", { style: { flexShrink: 0, width: 44, textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: COLORS.inkSoft, textTransform: "uppercase" } }, DIAS_SEMANA[i]), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: isFestivo ? COLORS.teja : COLORS.ink, fontFamily: "Georgia, serif" } }, day.getDate())), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0, overflow: "hidden" } }, isFestivo && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10.5, color: COLORS.teja, fontWeight: 600, marginBottom: 2 } }, isFestivo), /* @__PURE__ */ React.createElement(DayCellContent, { evs, bls, compact: true })));
+    }));
+  }
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 8 } }, days.map((day, i) => {
+    const k = dateKey(day);
+    const { evs, bls } = getEventsForDay(events, blocks, day);
+    const isFestivo = FESTIVOS_VALENCIA[k];
+    const isToday = sameDay(day, /* @__PURE__ */ new Date());
+    return /* @__PURE__ */ React.createElement("div", { key: i, onClick: () => onSelectDay(day), style: {
+      height: 170,
+      boxSizing: "border-box",
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+      minWidth: 0,
+      background: isFestivo ? "#FBF2E8" : "#fff",
+      borderRadius: 10,
+      padding: 10,
+      border: isToday ? `2px solid ${COLORS.azulejo}` : `1.5px solid ${COLORS.line}`,
+      cursor: "pointer"
+    } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: COLORS.inkSoft, textTransform: "uppercase", flexShrink: 0 } }, DIAS_SEMANA[i]), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 19, fontWeight: 800, color: isFestivo ? COLORS.teja : COLORS.ink, fontFamily: "Georgia, serif", flexShrink: 0 } }, day.getDate()), isFestivo && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10.5, color: COLORS.teja, fontWeight: 600, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 } }, isFestivo), /* @__PURE__ */ React.createElement(DayCellContent, { evs, bls }));
+  }));
+}
+function DayView({ refDate, events, blocks, users }) {
+  const k = dateKey(refDate);
+  const { evs, bls } = getEventsForDay(events, blocks, refDate);
+  const isFestivo = FESTIVOS_VALENCIA[k];
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "Georgia, serif", fontSize: 26, fontWeight: 700, color: COLORS.azulejoDark, textTransform: "capitalize" } }, fmtDateHuman(refDate)), isFestivo && /* @__PURE__ */ React.createElement(Badge, { bg: COLORS.teja }, "Festivo \xB7 ", isFestivo)), bls.length === 0 && evs.length === 0 && /* @__PURE__ */ React.createElement(EmptyState, { icon: CalendarDays, title: "D\xEDa libre", text: "No hay reservas ni bloqueos para este d\xEDa." }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, bls.map((b, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { background: "#3a3530", color: "#fff", borderRadius: 10, padding: 14, display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement(Lock, { size: 18 }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, b.title || "Uso personal de la casa"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, opacity: 0.8 } }, fmtDateShort(parseKey(b.start)), " \u2013 ", fmtDateShort(parseKey(b.end)))))), evs.map((e, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { background: e.colorHex + "15", borderLeft: `4px solid ${e.colorHex}`, borderRadius: 10, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: COLORS.ink } }, e.title), /* @__PURE__ */ React.createElement(Badge, { bg: e.colorHex }, e.userName)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: COLORS.inkSoft, marginTop: 3 } }, fmtDateShort(parseKey(e.start)), " \u2013 ", fmtDateShort(parseKey(e.end))), e.notes && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: COLORS.ink, marginTop: 6 } }, e.notes)))));
+}
+function NewEventModal({ onClose, onSubmit, defaultDate, existingEvent, isAdmin }) {
+  const [title, setTitle] = useState((existingEvent == null ? void 0 : existingEvent.title) || "");
+  const [start, setStart] = useState((existingEvent == null ? void 0 : existingEvent.start) || dateKey(defaultDate || /* @__PURE__ */ new Date()));
+  const [end, setEnd] = useState((existingEvent == null ? void 0 : existingEvent.end) || dateKey(defaultDate || /* @__PURE__ */ new Date()));
+  const [notes, setNotes] = useState((existingEvent == null ? void 0 : existingEvent.notes) || "");
+  const [error, setError] = useState("");
+  function submit(e) {
+    e.preventDefault();
+    if (!title.trim()) {
+      setError("Indica un t\xEDtulo para la reserva.");
+      return;
+    }
+    if (parseKey(end) < parseKey(start)) {
+      setError("La fecha de fin no puede ser anterior a la de inicio.");
+      return;
+    }
+    onSubmit({ title: title.trim(), start, end, notes: notes.trim() });
+  }
+  return /* @__PURE__ */ React.createElement(Modal, { title: existingEvent ? "Editar solicitud de reserva" : "Nueva solicitud de reserva", onClose }, /* @__PURE__ */ React.createElement("form", { onSubmit: submit }, error && /* @__PURE__ */ React.createElement("div", { style: { background: "#FBEAE7", color: COLORS.rojo, padding: "8px 12px", borderRadius: 8, fontSize: 13, marginBottom: 12 } }, error), /* @__PURE__ */ React.createElement(Field, { label: "T\xEDtulo" }, /* @__PURE__ */ React.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value), placeholder: "Ej. Fin de semana con amigos", required: true })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Llegada" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: start, onChange: (e) => setStart(e.target.value), required: true }))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Salida" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: end, onChange: (e) => setEnd(e.target.value), required: true })))), /* @__PURE__ */ React.createElement(Field, { label: "Notas (opcional)" }, /* @__PURE__ */ React.createElement(TextArea, { value: notes, onChange: (e) => setNotes(e.target.value), placeholder: "Cu\xE1ntas personas, algo a tener en cuenta\u2026" })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 14, display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(Clock, { size: 14, style: { flexShrink: 0, marginTop: 1 } }), existingEvent ? "Este cambio quedar\xE1 pendiente de aprobaci\xF3n antes de actualizarse en el calendario." : "Tu solicitud quedar\xE1 pendiente hasta que el administrador la apruebe."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Button, { variant: "subtle", onClick: onClose }, "Cancelar"), /* @__PURE__ */ React.createElement(Button, { type: "submit" }, existingEvent ? "Enviar cambio" : "Enviar solicitud"))));
+}
+function NewBlockModal({ onClose, onSubmit, defaultDate }) {
+  const [title, setTitle] = useState("Uso personal");
+  const [start, setStart] = useState(dateKey(defaultDate || /* @__PURE__ */ new Date()));
+  const [end, setEnd] = useState(dateKey(defaultDate || /* @__PURE__ */ new Date()));
+  const [error, setError] = useState("");
+  function submit(e) {
+    e.preventDefault();
+    if (parseKey(end) < parseKey(start)) {
+      setError("La fecha de fin no puede ser anterior a la de inicio.");
+      return;
+    }
+    onSubmit({ title: title.trim() || "Uso personal", start, end });
+  }
+  return /* @__PURE__ */ React.createElement(Modal, { title: "Bloquear fechas para uso personal", onClose }, /* @__PURE__ */ React.createElement("form", { onSubmit: submit }, error && /* @__PURE__ */ React.createElement("div", { style: { background: "#FBEAE7", color: COLORS.rojo, padding: "8px 12px", borderRadius: 8, fontSize: 13, marginBottom: 12 } }, error), /* @__PURE__ */ React.createElement(Field, { label: "Motivo (opcional)" }, /* @__PURE__ */ React.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Desde" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: start, onChange: (e) => setStart(e.target.value), required: true }))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Hasta" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: end, onChange: (e) => setEnd(e.target.value), required: true })))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 14 } }, "Estas fechas se bloquear\xE1n de inmediato en el calendario para todos los usuarios."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Button, { variant: "subtle", onClick: onClose }, "Cancelar"), /* @__PURE__ */ React.createElement(Button, { variant: "teja", type: "submit", icon: Lock }, "Bloquear"))));
+}
+function EditProfileModal({ user, users, onClose, onSubmit, isAdmin, isSelf }) {
+  const [nombre, setNombre] = useState(user.nombre);
+  const [apellidos, setApellidos] = useState(user.apellidos);
+  const [vinculacion, setVinculacion] = useState(user.vinculacion);
+  const [vinculacionDetalle, setVinculacionDetalle] = useState(user.vinculacionDetalle || "");
+  const [colorHex, setColorHex] = useState(user.colorHex);
+  const usedColors = new Set(users.filter((u) => u.status === "approved" && u.id !== user.id).map((u) => u.colorHex));
+  const familiaUsers = users.filter((u) => u.status === "approved" && u.vinculacion === "Familia" && u.id !== user.id);
+  function submit(e) {
+    e.preventDefault();
+    const colorObj = USER_COLOR_PALETTE.find((c) => c.hex === colorHex) || USER_COLOR_PALETTE[0];
+    onSubmit({ nombre: nombre.trim(), apellidos: apellidos.trim(), vinculacion, vinculacionDetalle: vinculacion === "Amigos de la familia" ? vinculacionDetalle : "", colorHex, colorName: colorObj.name });
+  }
+  return /* @__PURE__ */ React.createElement(Modal, { title: "Editar datos de usuario", onClose }, /* @__PURE__ */ React.createElement("form", { onSubmit: submit }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Nombre" }, /* @__PURE__ */ React.createElement(Input, { value: nombre, onChange: (e) => setNombre(e.target.value), required: true }))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Apellidos" }, /* @__PURE__ */ React.createElement(Input, { value: apellidos, onChange: (e) => setApellidos(e.target.value), required: true })))), /* @__PURE__ */ React.createElement(Field, { label: "Vinculaci\xF3n con la casa" }, /* @__PURE__ */ React.createElement(Select, { value: vinculacion, onChange: (e) => setVinculacion(e.target.value) }, VINCULACIONES.map((v) => /* @__PURE__ */ React.createElement("option", { key: v, value: v }, v)))), vinculacion === "Amigos de la familia" && /* @__PURE__ */ React.createElement(Field, { label: "\xBFDe qui\xE9n de la familia?" }, familiaUsers.length > 0 ? /* @__PURE__ */ React.createElement(Select, { value: vinculacionDetalle, onChange: (e) => setVinculacionDetalle(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Selecciona\u2026"), familiaUsers.map((u) => /* @__PURE__ */ React.createElement("option", { key: u.id, value: `${u.nombre} ${u.apellidos}` }, u.nombre, " ", u.apellidos))) : /* @__PURE__ */ React.createElement(Input, { value: vinculacionDetalle, onChange: (e) => setVinculacionDetalle(e.target.value), placeholder: "Nombre de la persona de la familia" })), /* @__PURE__ */ React.createElement(Field, { label: "Color en el calendario" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } }, USER_COLOR_PALETTE.map((c) => {
+    const taken = usedColors.has(c.hex);
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: c.hex,
+        type: "button",
+        disabled: taken,
+        title: c.name,
+        onClick: () => setColorHex(c.hex),
+        style: { width: 28, height: 28, borderRadius: "50%", background: c.hex, border: colorHex === c.hex ? `3px solid ${COLORS.ink}` : "3px solid transparent", cursor: taken ? "not-allowed" : "pointer", opacity: taken ? 0.25 : 1 }
+      }
+    );
+  }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 14, display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(Clock, { size: 14, style: { flexShrink: 0, marginTop: 1 } }), isAdmin && isSelf ? "Como administrador, este cambio se aplicar\xE1 directamente." : "Este cambio quedar\xE1 pendiente de aprobaci\xF3n por el administrador."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Button, { variant: "subtle", onClick: onClose }, "Cancelar"), /* @__PURE__ */ React.createElement(Button, { type: "submit" }, isAdmin && isSelf ? "Guardar" : "Enviar cambio"))));
+}
+function AlfinachApp() {
+  const isMobile = useIsMobile();
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [blocks, setBlocks] = useState([]);
+  const [editRequests, setEditRequests] = useState([]);
+  const [houseInfo, setHouseInfo] = useState(DEFAULT_HOUSE_INFO);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [view, setView] = useState("month");
+  const [refDate, setRefDate] = useState(/* @__PURE__ */ new Date());
+  const [activePanel, setActivePanel] = useState(null);
+  const [showNewEvent, setShowNewEvent] = useState(false);
+  const [showNewBlock, setShowNewBlock] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [pendingMailto, setPendingMailto] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [rejectingEvent, setRejectingEvent] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [pendingReminders, setPendingReminders] = useState([]);
+  useEffect(() => {
+    (async () => {
+      if (!window.__alfinachDb) {
+        await new Promise((resolve) => {
+          window.addEventListener("alfinach-firebase-ready", resolve, { once: true });
+          setTimeout(resolve, 3e3);
+        });
+      }
+      const [u, e, b, er, hi, session] = await Promise.all([
+        loadShared(K_USERS, []),
+        loadShared(K_EVENTS, []),
+        loadShared(K_BLOCKS, []),
+        loadShared(K_EDITS, []),
+        loadShared(K_HOUSE, DEFAULT_HOUSE_INFO),
+        loadPersonal(K_SESSION, null)
+      ]);
+      const isLegacyPlaceholder = hi && hi.features === LEGACY_PLACEHOLDER_HOUSE_INFO.features && hi.care === LEGACY_PLACEHOLDER_HOUSE_INFO.care && hi.payment === LEGACY_PLACEHOLDER_HOUSE_INFO.payment;
+      const resolvedHouseInfo = isLegacyPlaceholder ? DEFAULT_HOUSE_INFO : hi;
+      setUsers(u);
+      setEvents(e);
+      setBlocks(b);
+      setEditRequests(er);
+      setHouseInfo(resolvedHouseInfo);
+      if (isLegacyPlaceholder) saveShared(K_HOUSE, DEFAULT_HOUSE_INFO);
+      if ((session == null ? void 0 : session.userId) && u.some((x) => x.id === session.userId)) setCurrentUserId(session.userId);
+      setLoading(false);
+    })();
+  }, []);
+  useEffect(() => {
+    let unsubUsers, unsubEvents, unsubBlocks, unsubEdits, unsubHouse;
+    let cancelled = false;
+    (async () => {
+      if (!window.__alfinachDb) {
+        await new Promise((resolve) => {
+          window.addEventListener("alfinach-firebase-ready", resolve, { once: true });
+          setTimeout(resolve, 3e3);
+        });
+      }
+      if (cancelled) return;
+      const db = window.__alfinachDb;
+      if (!db) return;
+      const { doc, onSnapshot } = window.__firestoreFns;
+      unsubUsers = onSnapshot(doc(db, FIRESTORE_COLLECTION, K_USERS), (snap) => {
+        if (snap.exists() && snap.data() && "value" in snap.data()) setUsers(snap.data().value);
+      });
+      unsubEvents = onSnapshot(doc(db, FIRESTORE_COLLECTION, K_EVENTS), (snap) => {
+        if (snap.exists() && snap.data() && "value" in snap.data()) setEvents(snap.data().value);
+      });
+      unsubBlocks = onSnapshot(doc(db, FIRESTORE_COLLECTION, K_BLOCKS), (snap) => {
+        if (snap.exists() && snap.data() && "value" in snap.data()) setBlocks(snap.data().value);
+      });
+      unsubEdits = onSnapshot(doc(db, FIRESTORE_COLLECTION, K_EDITS), (snap) => {
+        if (snap.exists() && snap.data() && "value" in snap.data()) setEditRequests(snap.data().value);
+      });
+      unsubHouse = onSnapshot(doc(db, FIRESTORE_COLLECTION, K_HOUSE), (snap) => {
+        if (snap.exists() && snap.data() && "value" in snap.data()) setHouseInfo(snap.data().value);
+      });
+    })();
+    return () => {
+      cancelled = true;
+      if (unsubUsers) unsubUsers();
+      if (unsubEvents) unsubEvents();
+      if (unsubBlocks) unsubBlocks();
+      if (unsubEdits) unsubEdits();
+      if (unsubHouse) unsubHouse();
+    };
+  }, []);
+  const currentUser = users.find((u) => u.id === currentUserId) || null;
+  const isAdmin = (currentUser == null ? void 0 : currentUser.role) === "admin";
+  async function persistUsers(next) {
+    setUsers(next);
+    await saveShared(K_USERS, next);
+  }
+  async function persistEvents(next) {
+    setEvents(next);
+    await saveShared(K_EVENTS, next);
+  }
+  async function persistBlocks(next) {
+    setBlocks(next);
+    await saveShared(K_BLOCKS, next);
+  }
+  async function persistEdits(next) {
+    setEditRequests(next);
+    await saveShared(K_EDITS, next);
+  }
+  async function persistHouseInfo(next) {
+    setHouseInfo(next);
+    await saveShared(K_HOUSE, next);
+  }
+  useEffect(() => {
+    if (!isAdmin || loading) return;
+    const today = /* @__PURE__ */ new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetKey = dateKey(addDays(today, 3));
+    const due = events.filter((e) => e.status === "approved" && !e.reminderSent && e.start === targetKey);
+    if (due.length > 0) setPendingReminders(due);
+  }, [isAdmin, loading, events]);
+  async function markReminderSent(eventId) {
+    const next = events.map((e) => e.id === eventId ? { ...e, reminderSent: true, reminderSentAt: (/* @__PURE__ */ new Date()).toISOString() } : e);
+    await persistEvents(next);
+    setPendingReminders((prev) => prev.filter((e) => e.id !== eventId));
+  }
+  function sendPreArrivalReminder(ev) {
+    const u = users.find((x) => x.id === ev.userId);
+    if (!u) return;
+    const { subject, body } = buildPreArrivalReminderEmail(u, ev, houseInfo.payment);
+    setPendingMailto({ to: u.email, subject, body, label: "Recordatorio previo a la estancia", onSent: () => markReminderSent(ev.id) });
+  }
+  async function handleLogin(user) {
+    setCurrentUserId(user.id);
+    await savePersonal(K_SESSION, { userId: user.id });
+  }
+  async function handleLogout() {
+    setCurrentUserId(null);
+    await savePersonal(K_SESSION, null);
+  }
+  async function handleRegister(newUser) {
+    const next = [...users, newUser];
+    await persistUsers(next);
+    if (newUser.role === "admin") {
+      setCurrentUserId(newUser.id);
+      await savePersonal(K_SESSION, { userId: newUser.id });
+    }
+  }
+  async function approveUser(userId) {
+    const u = users.find((x) => x.id === userId);
+    const next = users.map((x) => x.id === userId ? { ...x, status: "approved" } : x);
+    await persistUsers(next);
+    if (u) {
+      const { subject, body } = buildApprovalEmail(u);
+      setPendingMailto({ to: u.email, subject, body, label: "Aprobaci\xF3n de usuario" });
+    }
+  }
+  async function rejectUser(userId) {
+    const next = users.map((x) => x.id === userId ? { ...x, status: "rejected" } : x);
+    await persistUsers(next);
+  }
+  async function submitEventRequest({ title, start, end, notes }) {
+    const newEvent = {
+      id: uid("ev"),
+      title,
+      start,
+      end,
+      notes,
+      userId: currentUser.id,
+      userName: `${currentUser.nombre} ${currentUser.apellidos}`,
+      colorHex: currentUser.colorHex,
+      status: "pending",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    await persistEvents([...events, newEvent]);
+    setShowNewEvent(false);
+  }
+  async function approveEvent(eventId) {
+    const ev = events.find((e) => e.id === eventId);
+    const next = events.map((e) => e.id === eventId ? { ...e, status: "approved" } : e);
+    await persistEvents(next);
+    if (ev) {
+      const u = users.find((x) => x.id === ev.userId);
+      if (u) {
+        const { subject, body } = buildEventApprovalEmail(u, ev);
+        setPendingMailto({ to: u.email, subject, body, label: "Aprobaci\xF3n de reserva" });
+      }
+    }
+  }
+  function openReject(ev) {
+    setRejectingEvent(ev);
+    setRejectReason("");
+  }
+  async function confirmRejectEvent() {
+    const ev = rejectingEvent;
+    const next = events.map((e) => e.id === ev.id ? { ...e, status: "rejected", rejectReason } : e);
+    await persistEvents(next);
+    const u = users.find((x) => x.id === ev.userId);
+    if (u) {
+      const { subject, body } = buildEventRejectionEmail(u, ev, rejectReason);
+      setPendingMailto({ to: u.email, subject, body, label: "Solicitud no aprobada" });
+    }
+    setRejectingEvent(null);
+  }
+  async function deleteEvent(eventId) {
+    await persistEvents(events.filter((e) => e.id !== eventId));
+  }
+  async function submitEventEdit(updated) {
+    const ev = editingEvent;
+    if (isAdmin) {
+      const next = events.map((e) => e.id === ev.id ? { ...e, ...updated } : e);
+      await persistEvents(next);
+    } else {
+      const req = {
+        id: uid("edit"),
+        type: "event",
+        targetId: ev.id,
+        userId: currentUser.id,
+        userName: `${currentUser.nombre} ${currentUser.apellidos}`,
+        userEmail: currentUser.email,
+        description: `Modificar reserva "${ev.title}" \u2192 t\xEDtulo: "${updated.title}", fechas: ${updated.start} a ${updated.end}${updated.notes ? `, notas: ${updated.notes}` : ""}`,
+        payload: updated,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        status: "pending"
+      };
+      await persistEdits([...editRequests, req]);
+    }
+    setEditingEvent(null);
+  }
+  async function submitBlock({ title, start, end }) {
+    const newBlock = { id: uid("block"), title, start, end, createdAt: (/* @__PURE__ */ new Date()).toISOString() };
+    await persistBlocks([...blocks, newBlock]);
+    setShowNewBlock(false);
+  }
+  async function deleteBlock(blockId) {
+    await persistBlocks(blocks.filter((b) => b.id !== blockId));
+  }
+  async function submitProfileEdit(updated) {
+    if (isAdmin) {
+      const next = users.map((u) => u.id === currentUser.id ? { ...u, ...updated } : u);
+      await persistUsers(next);
+    } else {
+      const req = {
+        id: uid("edit"),
+        type: "profile",
+        targetId: currentUser.id,
+        userId: currentUser.id,
+        userName: `${currentUser.nombre} ${currentUser.apellidos}`,
+        userEmail: currentUser.email,
+        description: `Actualizar datos de perfil de ${currentUser.nombre} ${currentUser.apellidos} \u2192 ${JSON.stringify(updated)}`,
+        payload: updated,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        status: "pending"
+      };
+      await persistEdits([...editRequests, req]);
+    }
+    setShowEditProfile(false);
+  }
+  async function approveEditRequest(reqId) {
+    const req = editRequests.find((r) => r.id === reqId);
+    if (!req) return;
+    if (req.type === "event") {
+      const next = events.map((e) => e.id === req.targetId ? { ...e, ...req.payload } : e);
+      await persistEvents(next);
+    } else if (req.type === "profile") {
+      const next = users.map((u) => u.id === req.targetId ? { ...u, ...req.payload } : u);
+      await persistUsers(next);
+    }
+    await persistEdits(editRequests.map((r) => r.id === reqId ? { ...r, status: "approved" } : r));
+    const { subject, body } = buildEditApprovalEmail({ nombre: req.userName.split(" ")[0] }, req.description);
+    setPendingMailto({ to: req.userEmail, subject, body, label: "Confirmaci\xF3n de cambio" });
+  }
+  async function rejectEditRequest(reqId) {
+    await persistEdits(editRequests.map((r) => r.id === reqId ? { ...r, status: "rejected" } : r));
+  }
+  function goPrev() {
+    if (view === "year") setRefDate((d) => new Date(d.getFullYear() - 1, 0, 1));
+    else if (view === "month") setRefDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+    else if (view === "week") setRefDate((d) => addDays(d, -7));
+    else setRefDate((d) => addDays(d, -1));
+  }
+  function goNext() {
+    if (view === "year") setRefDate((d) => new Date(d.getFullYear() + 1, 0, 1));
+    else if (view === "month") setRefDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+    else if (view === "week") setRefDate((d) => addDays(d, 7));
+    else setRefDate((d) => addDays(d, 1));
+  }
+  function goToday() {
+    setRefDate(/* @__PURE__ */ new Date());
+  }
+  const pendingUsers = users.filter((u) => u.status === "pending");
+  const pendingEvents = events.filter((e) => e.status === "pending");
+  const pendingEdits = editRequests.filter((r) => r.status === "pending");
+  const totalPending = pendingUsers.length + pendingEvents.length + pendingEdits.length + pendingReminders.length;
+  const myEvents = currentUser ? events.filter((e) => e.userId === currentUser.id) : [];
+  if (loading) {
+    return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.bg, fontFamily: "system-ui" } }, "Cargando Alfinach\u2026");
+  }
+  if (!currentUser) {
+    return /* @__PURE__ */ React.createElement(AuthScreen, { users, onLogin: handleLogin, onRegister: handleRegister });
+  }
+  const headerLabel = (() => {
+    if (view === "year") return `${refDate.getFullYear()}`;
+    if (view === "month") return `${MESES[refDate.getMonth()]} ${refDate.getFullYear()}`;
+    if (view === "week") {
+      const s = startOfWeekMonday(refDate), e = addDays(s, 6);
+      return `${s.getDate()} ${MESES[s.getMonth()].slice(0, 3)} \u2013 ${e.getDate()} ${MESES[e.getMonth()].slice(0, 3)} ${e.getFullYear()}`;
+    }
+    return fmtDateHuman(refDate);
+  })();
+  return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", background: COLORS.bg, fontFamily: "system-ui, -apple-system, sans-serif", color: COLORS.ink } }, /* @__PURE__ */ React.createElement("div", { style: { background: COLORS.azulejoDark, color: "#fff", padding: "14px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement(Home, { size: 22 }), /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "Georgia, serif", fontSize: 21, fontWeight: 700, letterSpacing: 0.3 } }, "Alfinach")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setActivePanel("house"), style: {
+    background: "rgba(255,255,255,0.12)",
+    border: "none",
+    color: "#fff",
+    borderRadius: 8,
+    padding: isMobile ? "8px 10px" : "8px 14px",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: 13.5,
+    flexShrink: 0
+  } }, /* @__PURE__ */ React.createElement(Info, { size: 15 }), " ", !isMobile && "La casa"), isAdmin && /* @__PURE__ */ React.createElement("button", { onClick: () => setActivePanel("admin"), style: {
+    position: "relative",
+    background: "rgba(255,255,255,0.12)",
+    border: "none",
+    color: "#fff",
+    borderRadius: 8,
+    padding: isMobile ? "8px 10px" : "8px 14px",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: 13.5,
+    flexShrink: 0
+  } }, /* @__PURE__ */ React.createElement(Shield, { size: 15 }), " ", !isMobile && "Administraci\xF3n", totalPending > 0 && /* @__PURE__ */ React.createElement("span", { style: { position: "absolute", top: -6, right: -6, background: COLORS.teja, borderRadius: 10, fontSize: 10.5, fontWeight: 800, padding: "1px 6px" } }, totalPending)), /* @__PURE__ */ React.createElement("button", { onClick: () => setActivePanel("profile"), style: { background: "rgba(255,255,255,0.12)", border: "none", color: "#fff", borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", gap: 7, cursor: "pointer", minWidth: 0, flexShrink: 1, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("span", { style: { width: 18, height: 18, borderRadius: "50%", background: currentUser.colorHex, display: "inline-block", border: "2px solid rgba(255,255,255,0.7)", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: isMobile ? 80 : "none" } }, currentUser.nombre)), /* @__PURE__ */ React.createElement("button", { onClick: handleLogout, title: "Cerrar sesi\xF3n", style: { background: "transparent", border: "none", color: "rgba(255,255,255,0.85)", cursor: "pointer", padding: 8, flexShrink: 0 } }, /* @__PURE__ */ React.createElement(LogOut, { size: 17 }))))), /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 1100, margin: "0 auto", padding: "20px 16px 60px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 } }, /* @__PURE__ */ React.createElement("button", { onClick: goPrev, style: { background: "#fff", border: `1.5px solid ${COLORS.line}`, borderRadius: 8, padding: 7, cursor: "pointer", display: "flex", flexShrink: 0 } }, /* @__PURE__ */ React.createElement(ChevronLeft, { size: 18, color: COLORS.azulejo })), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "Georgia, serif", fontSize: isMobile ? 16 : 19, fontWeight: 700, color: COLORS.azulejoDark, minWidth: isMobile ? 0 : 160, textTransform: "capitalize", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, headerLabel), /* @__PURE__ */ React.createElement("button", { onClick: goNext, style: { background: "#fff", border: `1.5px solid ${COLORS.line}`, borderRadius: 8, padding: 7, cursor: "pointer", display: "flex", flexShrink: 0 } }, /* @__PURE__ */ React.createElement(ChevronRight, { size: 18, color: COLORS.azulejo })), !isMobile && /* @__PURE__ */ React.createElement(Button, { variant: "subtle", size: "sm", onClick: goToday }, "Hoy")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: isMobile ? 2 : 6, background: "#fff", borderRadius: 9, padding: 4, border: `1.5px solid ${COLORS.line}`, flexShrink: 0 } }, [
+    { id: "year", label: "A\xF1o", icon: CalendarRange },
+    { id: "month", label: "Mes", icon: Calendar },
+    { id: "week", label: "Semana", icon: CalendarDays },
+    { id: "day", label: "D\xEDa", icon: List }
+  ].map((v) => /* @__PURE__ */ React.createElement("button", { key: v.id, onClick: () => setView(v.id), title: v.label, style: {
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    border: "none",
+    borderRadius: 6,
+    padding: isMobile ? "6px 8px" : "6px 11px",
+    cursor: "pointer",
+    background: view === v.id ? COLORS.azulejo : "transparent",
+    color: view === v.id ? "#fff" : COLORS.inkSoft,
+    fontWeight: 600,
+    fontSize: 13
+  } }, /* @__PURE__ */ React.createElement(v.icon, { size: 14 }), !isMobile && v.label))), isMobile && /* @__PURE__ */ React.createElement(Button, { variant: "subtle", size: "sm", onClick: goToday, full: true }, "Hoy")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(Button, { icon: Plus, onClick: () => {
+    setSelectedDay(refDate);
+    setShowNewEvent(true);
+  } }, "Solicitar reserva"), isAdmin && /* @__PURE__ */ React.createElement(Button, { variant: "teja", icon: Lock, onClick: () => {
+    setSelectedDay(refDate);
+    setShowNewBlock(true);
+  } }, "Bloquear fechas"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", icon: Info, onClick: () => setActivePanel("house") }, "La casa")), /* @__PURE__ */ React.createElement("div", { style: { background: view === "year" ? "transparent" : "#fff", borderRadius: 14, padding: view === "year" ? 0 : 18, border: view === "year" ? "none" : `1.5px solid ${COLORS.line}` } }, view === "year" && /* @__PURE__ */ React.createElement(
+    YearView,
+    {
+      year: refDate.getFullYear(),
+      events,
+      blocks,
+      onSelectDay: (d) => {
+        setRefDate(d);
+        setView("day");
+      },
+      onMonthClick: (m) => {
+        setRefDate(new Date(refDate.getFullYear(), m, 1));
+        setView("month");
+      }
+    }
+  ), view === "month" && /* @__PURE__ */ React.createElement(MonthView, { refDate, events, blocks, onSelectDay: (d) => {
+    setRefDate(d);
+    setView("day");
+  } }), view === "week" && /* @__PURE__ */ React.createElement(WeekView, { refDate, events, blocks, onSelectDay: (d) => {
+    setRefDate(d);
+    setView("day");
+  } }), view === "day" && /* @__PURE__ */ React.createElement(DayView, { refDate, events, blocks, users })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 28 } }, /* @__PURE__ */ React.createElement("h3", { style: { fontFamily: "Georgia, serif", color: COLORS.azulejoDark, fontSize: 18, marginBottom: 10 } }, "Mis solicitudes"), myEvents.length === 0 ? /* @__PURE__ */ React.createElement(EmptyState, { icon: CalendarDays, title: "A\xFAn no tienes solicitudes", text: "Usa el bot\xF3n 'Solicitar reserva' para pedir tus fechas." }) : /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, myEvents.sort((a, b) => a.start.localeCompare(b.start)).map((ev) => /* @__PURE__ */ React.createElement("div", { key: ev.id, style: { background: "#fff", borderRadius: 10, padding: 12, border: `1.5px solid ${COLORS.line}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, ev.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: COLORS.inkSoft } }, fmtDateShort(parseKey(ev.start)), " \u2013 ", fmtDateShort(parseKey(ev.end))), ev.status === "rejected" && ev.rejectReason && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: COLORS.rojo, marginTop: 3 } }, "Motivo: ", ev.rejectReason)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, ev.status === "pending" && /* @__PURE__ */ React.createElement(Badge, { bg: COLORS.mostaza }, "Pendiente"), ev.status === "approved" && /* @__PURE__ */ React.createElement(Badge, { bg: COLORS.oliva }, "Aprobada"), ev.status === "rejected" && /* @__PURE__ */ React.createElement(Badge, { bg: COLORS.rojo }, "No aprobada"), ev.status !== "rejected" && /* @__PURE__ */ React.createElement("button", { onClick: () => setEditingEvent(ev), style: { background: "none", border: "none", color: COLORS.azulejo, cursor: "pointer", padding: 4 }, title: "Editar" }, /* @__PURE__ */ React.createElement(Edit2, { size: 15 }))))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 30, fontSize: 12, color: COLORS.inkSoft, textAlign: "center", borderTop: `1.5px solid ${COLORS.line}`, paddingTop: 16 } }, "Festivos seg\xFAn calendario laboral de Valencia \xB7 datos guardados de forma compartida entre todas las personas con acceso a Alfinach.")), showNewEvent && /* @__PURE__ */ React.createElement(NewEventModal, { defaultDate: selectedDay, onClose: () => setShowNewEvent(false), onSubmit: submitEventRequest }), showNewBlock && isAdmin && /* @__PURE__ */ React.createElement(NewBlockModal, { defaultDate: selectedDay, onClose: () => setShowNewBlock(false), onSubmit: submitBlock }), editingEvent && /* @__PURE__ */ React.createElement(NewEventModal, { existingEvent: editingEvent, isAdmin, onClose: () => setEditingEvent(null), onSubmit: submitEventEdit }), showEditProfile && /* @__PURE__ */ React.createElement(EditProfileModal, { user: currentUser, users, isAdmin, isSelf: true, onClose: () => setShowEditProfile(false), onSubmit: submitProfileEdit }), rejectingEvent && /* @__PURE__ */ React.createElement(Modal, { title: "Rechazar solicitud", onClose: () => setRejectingEvent(null) }, /* @__PURE__ */ React.createElement(Field, { label: "Motivo (se incluir\xE1 en el email, opcional)" }, /* @__PURE__ */ React.createElement(TextArea, { value: rejectReason, onChange: (e) => setRejectReason(e.target.value), placeholder: "Ej. esas fechas ya est\xE1n comprometidas para otra reserva." })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 } }, /* @__PURE__ */ React.createElement(Button, { variant: "subtle", onClick: () => setRejectingEvent(null) }, "Cancelar"), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: confirmRejectEvent }, "Rechazar y notificar"))), activePanel === "profile" && /* @__PURE__ */ React.createElement(Modal, { title: "Mi perfil", onClose: () => setActivePanel(null) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 16 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 40, height: 40, borderRadius: "50%", background: currentUser.colorHex, display: "inline-block", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 16 } }, currentUser.nombre, " ", currentUser.apellidos), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: COLORS.inkSoft } }, currentUser.vinculacion, currentUser.vinculacionDetalle ? ` (${currentUser.vinculacionDetalle})` : "", " ", isAdmin && "\xB7 Administrador/a"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: COLORS.inkSoft, marginBottom: 16 } }, /* @__PURE__ */ React.createElement(Mail, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }), currentUser.email), /* @__PURE__ */ React.createElement(Button, { icon: Edit2, variant: "subtle", full: true, onClick: () => {
+    setActivePanel(null);
+    setShowEditProfile(true);
+  } }, "Editar mis datos")), activePanel === "admin" && isAdmin && /* @__PURE__ */ React.createElement(Modal, { title: "Panel de administraci\xF3n", onClose: () => setActivePanel(null), width: 620 }, /* @__PURE__ */ React.createElement(
+    AdminPanel,
+    {
+      users,
+      pendingUsers,
+      pendingEvents,
+      pendingEdits,
+      pendingReminders,
+      blocks,
+      onApproveUser: approveUser,
+      onRejectUser: rejectUser,
+      onApproveEvent: approveEvent,
+      onRejectEvent: openReject,
+      onApproveEdit: approveEditRequest,
+      onRejectEdit: rejectEditRequest,
+      onDeleteBlock: deleteBlock,
+      onDeleteEvent: deleteEvent,
+      onSendReminder: sendPreArrivalReminder,
+      onSkipReminder: markReminderSent,
+      allEvents: events
+    }
+  )), activePanel === "house" && /* @__PURE__ */ React.createElement(Modal, { title: "La casa", onClose: () => setActivePanel(null), width: 620 }, /* @__PURE__ */ React.createElement(HousePanel, { houseInfo, isAdmin, onSave: persistHouseInfo })), pendingMailto && /* @__PURE__ */ React.createElement(Modal, { title: pendingMailto.label, onClose: () => setPendingMailto(null), width: 520 }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: COLORS.inkSoft, marginBottom: 10 } }, pendingMailto.onSent ? "Reserva pr\xF3xima a comenzar." : "Se ha actualizado Alfinach.", " Pulsa el bot\xF3n para abrir tu correo con el mensaje ya redactado para enviarlo a ", /* @__PURE__ */ React.createElement("strong", null, pendingMailto.to), "."), /* @__PURE__ */ React.createElement("div", { style: { background: COLORS.bg, borderRadius: 10, padding: 14, fontSize: 13, whiteSpace: "pre-wrap", marginBottom: 16, border: `1.5px solid ${COLORS.line}`, maxHeight: 240, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("strong", null, "Asunto:"), " ", pendingMailto.subject, "\n\n", pendingMailto.body), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Button, { variant: "subtle", onClick: () => setPendingMailto(null) }, pendingMailto.onSent ? "Recordarme m\xE1s tarde" : "Cerrar"), /* @__PURE__ */ React.createElement("a", { href: mailtoHref(pendingMailto.to, pendingMailto.subject, pendingMailto.body), style: { textDecoration: "none" } }, /* @__PURE__ */ React.createElement(Button, { icon: Mail, onClick: () => {
+    if (pendingMailto.onSent) pendingMailto.onSent();
+    setPendingMailto(null);
+  } }, "Abrir correo")))));
+}
+function HousePanel({ houseInfo, isAdmin, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [features, setFeatures] = useState(houseInfo.features);
+  const [care, setCare] = useState(houseInfo.care);
+  const [payment, setPayment] = useState(houseInfo.payment);
+  useEffect(() => {
+    setFeatures(houseInfo.features);
+    setCare(houseInfo.care);
+    setPayment(houseInfo.payment);
+  }, [houseInfo]);
+  function save() {
+    onSave({ features: features.trim(), care: care.trim(), payment: payment.trim() });
+    setEditing(false);
+  }
+  function cancel() {
+    setFeatures(houseInfo.features);
+    setCare(houseInfo.care);
+    setPayment(houseInfo.payment);
+    setEditing(false);
+  }
+  if (editing) {
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Field, { label: "Caracter\xEDsticas de la casa", hint: "Habitaciones, camas, ba\xF1os, piscina, wifi, parking, etc." }, /* @__PURE__ */ React.createElement(TextArea, { value: features, onChange: (e) => setFeatures(e.target.value), style: { minHeight: 110 } })), /* @__PURE__ */ React.createElement(Field, { label: "Indicaciones de uso y cuidado", hint: "Horarios, normas, qu\xE9 hacer al salir, contacto de emergencia, etc." }, /* @__PURE__ */ React.createElement(TextArea, { value: care, onChange: (e) => setCare(e.target.value), style: { minHeight: 110 } })), /* @__PURE__ */ React.createElement(Field, { label: "Forma de pago", hint: "Importe, cuenta o medio de pago, plazo." }, /* @__PURE__ */ React.createElement(TextArea, { value: payment, onChange: (e) => setPayment(e.target.value), style: { minHeight: 90 } })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Button, { variant: "subtle", onClick: cancel }, "Cancelar"), /* @__PURE__ */ React.createElement(Button, { onClick: save }, "Guardar")));
+  }
+  return /* @__PURE__ */ React.createElement("div", null, isAdmin && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Button, { size: "sm", variant: "ghost", icon: Edit2, onClick: () => setEditing(true) }, "Editar")), /* @__PURE__ */ React.createElement(HouseSection, { title: "Caracter\xEDsticas de la casa", text: houseInfo.features }), /* @__PURE__ */ React.createElement(HouseSection, { title: "Uso y cuidado", text: houseInfo.care }), /* @__PURE__ */ React.createElement(HouseSection, { title: "Forma de pago", text: houseInfo.payment }));
+}
+function HouseSection({ title, text }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 15.5, color: COLORS.azulejoDark, marginBottom: 6 } }, title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: COLORS.ink, whiteSpace: "pre-wrap", lineHeight: 1.5, background: COLORS.bg, borderRadius: 10, padding: 12, border: `1.5px solid ${COLORS.line}` } }, text || "\u2014"));
+}
+function AdminPanel({ users, pendingUsers, pendingEvents, pendingEdits, pendingReminders, blocks, onApproveUser, onRejectUser, onApproveEvent, onRejectEvent, onApproveEdit, onRejectEdit, onDeleteBlock, onDeleteEvent, onSendReminder, onSkipReminder, allEvents }) {
+  const [tab, setTab] = useState("users");
+  const tabs = [
+    { id: "users", label: `Usuarios${pendingUsers.length ? ` (${pendingUsers.length})` : ""}` },
+    { id: "events", label: `Reservas${pendingEvents.length ? ` (${pendingEvents.length})` : ""}` },
+    { id: "reminders", label: `Recordatorios${pendingReminders.length ? ` (${pendingReminders.length})` : ""}` },
+    { id: "edits", label: `Cambios${pendingEdits.length ? ` (${pendingEdits.length})` : ""}` },
+    { id: "blocks", label: "Bloqueos" }
+  ];
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, background: COLORS.bg, borderRadius: 10, padding: 4, marginBottom: 18 } }, tabs.map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, onClick: () => setTab(t.id), style: {
+    flex: 1,
+    padding: "8px 4px",
+    border: "none",
+    borderRadius: 7,
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: 12.5,
+    background: tab === t.id ? COLORS.azulejo : "transparent",
+    color: tab === t.id ? "#fff" : COLORS.inkSoft
+  } }, t.label))), tab === "users" && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, pendingUsers.length === 0 && /* @__PURE__ */ React.createElement(EmptyState, { icon: User, title: "Sin solicitudes pendientes", text: "Las nuevas cuentas aparecer\xE1n aqu\xED." }), pendingUsers.map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, style: { border: `1.5px solid ${COLORS.line}`, borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 7 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 14, height: 14, borderRadius: "50%", background: u.colorHex, display: "inline-block" } }), u.nombre, " ", u.apellidos), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: COLORS.inkSoft } }, u.email, " \xB7 ", u.vinculacion, u.vinculacionDetalle ? ` (${u.vinculacionDetalle})` : "")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(Button, { size: "sm", variant: "danger", icon: X, onClick: () => onRejectUser(u.id) }, "Rechazar"), /* @__PURE__ */ React.createElement(Button, { size: "sm", icon: Check, onClick: () => onApproveUser(u.id) }, "Aprobar")))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, fontWeight: 700, color: COLORS.inkSoft, marginBottom: 8, textTransform: "uppercase" } }, "Usuarios activos"), users.filter((u) => u.status === "approved").map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 13.5 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 12, height: 12, borderRadius: "50%", background: u.colorHex, display: "inline-block" } }), u.nombre, " ", u.apellidos, " ", /* @__PURE__ */ React.createElement("span", { style: { color: COLORS.inkSoft } }, "\xB7 ", u.vinculacion, u.vinculacionDetalle ? ` (${u.vinculacionDetalle})` : "", u.role === "admin" ? " \xB7 Admin" : ""))))), tab === "events" && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, pendingEvents.length === 0 && /* @__PURE__ */ React.createElement(EmptyState, { icon: CalendarDays, title: "Sin reservas pendientes", text: "Las nuevas solicitudes de reserva aparecer\xE1n aqu\xED." }), pendingEvents.map((ev) => /* @__PURE__ */ React.createElement("div", { key: ev.id, style: { border: `1.5px solid ${COLORS.line}`, borderRadius: 10, padding: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, ev.title, " ", /* @__PURE__ */ React.createElement("span", { style: { color: ev.colorHex } }, "\xB7 ", ev.userName)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: COLORS.inkSoft } }, fmtDateShort(parseKey(ev.start)), " \u2013 ", fmtDateShort(parseKey(ev.end))), ev.notes && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, marginTop: 4 } }, ev.notes)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(Button, { size: "sm", variant: "danger", icon: X, onClick: () => onRejectEvent(ev) }, "Rechazar"), /* @__PURE__ */ React.createElement(Button, { size: "sm", icon: Check, onClick: () => onApproveEvent(ev.id) }, "Aprobar"))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, fontWeight: 700, color: COLORS.inkSoft, marginBottom: 8, textTransform: "uppercase" } }, "Reservas aprobadas"), allEvents.filter((e) => e.status === "approved").sort((a, b) => a.start.localeCompare(b.start)).map((ev) => /* @__PURE__ */ React.createElement("div", { key: ev.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", fontSize: 13 } }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("span", { style: { color: ev.colorHex, fontWeight: 700 } }, ev.userName), " \u2014 ", ev.title, " (", fmtDateShort(parseKey(ev.start)), "\u2013", fmtDateShort(parseKey(ev.end)), ")", ev.reminderSent && /* @__PURE__ */ React.createElement("span", { style: { color: COLORS.oliva, fontSize: 11, marginLeft: 6 } }, "\xB7 recordatorio enviado")), /* @__PURE__ */ React.createElement("button", { onClick: () => onDeleteEvent(ev.id), style: { background: "none", border: "none", color: COLORS.rojo, cursor: "pointer" }, title: "Eliminar" }, /* @__PURE__ */ React.createElement(X, { size: 15 })))))), tab === "reminders" && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, pendingReminders.length === 0 && /* @__PURE__ */ React.createElement(EmptyState, { icon: BellRing, title: "Sin recordatorios pendientes", text: "Aqu\xED aparecer\xE1n las reservas que comiencen dentro de 3 d\xEDas, para avisar al solicitante por email." }), pendingReminders.map((ev) => /* @__PURE__ */ React.createElement("div", { key: ev.id, style: { border: `1.5px solid ${COLORS.mostaza}`, background: "#FBF6E9", borderRadius: 10, padding: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, ev.title, " ", /* @__PURE__ */ React.createElement("span", { style: { color: ev.colorHex } }, "\xB7 ", ev.userName)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: COLORS.inkSoft } }, "Llega en 3 d\xEDas \xB7 ", fmtDateShort(parseKey(ev.start)), " \u2013 ", fmtDateShort(parseKey(ev.end)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(Button, { size: "sm", variant: "subtle", onClick: () => onSkipReminder(ev.id) }, "Omitir"), /* @__PURE__ */ React.createElement(Button, { size: "sm", icon: Mail, onClick: () => onSendReminder(ev) }, "Enviar recordatorio")))))), tab === "edits" && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, pendingEdits.length === 0 && /* @__PURE__ */ React.createElement(EmptyState, { icon: Edit2, title: "Sin cambios pendientes", text: "Las solicitudes de edici\xF3n de usuarios aparecer\xE1n aqu\xED." }), pendingEdits.map((req) => /* @__PURE__ */ React.createElement("div", { key: req.id, style: { border: `1.5px solid ${COLORS.line}`, borderRadius: 10, padding: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13.5 } }, req.userName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: COLORS.ink, margin: "5px 0" } }, req.description), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Button, { size: "sm", variant: "danger", icon: X, onClick: () => onRejectEdit(req.id) }, "Rechazar"), /* @__PURE__ */ React.createElement(Button, { size: "sm", icon: Check, onClick: () => onApproveEdit(req.id) }, "Aprobar"))))), tab === "blocks" && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, blocks.length === 0 && /* @__PURE__ */ React.createElement(EmptyState, { icon: Lock, title: "Sin fechas bloqueadas", text: "Usa 'Bloquear fechas' en el calendario para uso personal." }), blocks.sort((a, b) => a.start.localeCompare(b.start)).map((b) => /* @__PURE__ */ React.createElement("div", { key: b.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", border: `1.5px solid ${COLORS.line}`, borderRadius: 10, padding: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, b.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: COLORS.inkSoft } }, fmtDateShort(parseKey(b.start)), " \u2013 ", fmtDateShort(parseKey(b.end)))), /* @__PURE__ */ React.createElement("button", { onClick: () => onDeleteBlock(b.id), style: { background: "none", border: "none", color: COLORS.rojo, cursor: "pointer" }, title: "Desbloquear" }, /* @__PURE__ */ React.createElement(X, { size: 16 }))))));
+}
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(AlfinachApp));
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
