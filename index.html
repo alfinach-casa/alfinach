@@ -360,8 +360,8 @@ textarea.input{min-height:80px;resize:vertical}
   display:flex;align-items:center;justify-content:center;padding:16px;
   z-index:1000;animation:fadeIn 160ms ease}
 .modal{background:var(--surface);border-radius:var(--r-xl);width:100%;
-  max-height:88vh;overflow-y:auto;box-shadow:var(--sh-lg);
-  animation:slideUp 200ms ease}
+  max-height:88vh;overflow-y:auto;overflow-x:hidden;box-shadow:var(--sh-lg);
+  box-sizing:border-box;animation:slideUp 200ms ease}
 @media(max-width:620px){
   .modal-bg{align-items:flex-end;padding:0}
   .modal{border-radius:var(--r-xl) var(--r-xl) 0 0;max-height:94vh}
@@ -371,24 +371,26 @@ textarea.input{min-height:80px;resize:vertical}
   position:sticky;top:0;background:var(--surface);z-index:1;
   border-radius:var(--r-xl) var(--r-xl) 0 0}
 .modal-title{font-size:16px;font-weight:700;color:var(--tx)}
-.modal-body{padding:22px}
+.modal-body{padding:22px;box-sizing:border-box}
 
 /* \u2500\u2500 Header \u2500\u2500 */
 .app-header{position:sticky;top:0;z-index:200;
   background:rgba(16,62,82,.96);backdrop-filter:blur(14px);
   -webkit-backdrop-filter:blur(14px);
-  border-bottom:1px solid rgba(255,255,255,.08)}
-.header-inner{max-width:1100px;margin:0 auto;padding:0 16px;height:54px;
-  display:flex;align-items:center;justify-content:space-between;gap:10px}
-.header-logo{display:flex;align-items:center;gap:8px;color:#fff;cursor:pointer}
-.header-logo-text{font-family:var(--serif);font-size:20px;font-weight:700;letter-spacing:.3px}
-.header-nav{display:flex;align-items:center;gap:6px;min-width:0}
+  border-bottom:1px solid rgba(255,255,255,.08);
+  padding-top:env(safe-area-inset-top,0px)}
+.header-inner{max-width:1100px;margin:0 auto;padding:12px 16px;
+  display:flex;flex-direction:column;gap:10px;box-sizing:border-box}
+.header-top-row{display:flex;align-items:center;justify-content:center}
+.header-logo{display:flex;align-items:center;gap:9px;color:#fff;cursor:pointer}
+.header-logo-text{font-family:var(--serif);font-size:24px;font-weight:700;letter-spacing:.3px}
+.header-nav{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;flex-wrap:wrap}
 .h-btn{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);
   border:none;color:rgba(255,255,255,.92);border-radius:var(--r-sm);
-  padding:7px 12px;cursor:pointer;font-size:13px;font-weight:600;
+  padding:9px 14px;cursor:pointer;font-size:13px;font-weight:600;
   font-family:var(--font);transition:background var(--tf);white-space:nowrap;position:relative}
 .h-btn:hover{background:rgba(255,255,255,.18)}
-.h-btn-icon{padding:7px}
+.h-btn-icon{padding:9px}
 .h-badge{position:absolute;top:-5px;right:-5px;background:var(--a);color:#fff;
   border-radius:99px;font-size:10px;font-weight:800;padding:1px 5px;
   min-width:16px;text-align:center}
@@ -441,10 +443,10 @@ textarea.input{min-height:80px;resize:vertical}
   text-transform:uppercase;letter-spacing:.5px;padding:8px 0}
 .month-cells{display:grid;grid-template-columns:repeat(7,1fr);
   border-top:1.5px solid var(--border)}
-.m-cell{min-height:90px;padding:8px 6px;
+.m-cell{padding:8px 6px;
   border-right:1px solid var(--border);border-bottom:1px solid var(--border);
   cursor:pointer;display:flex;flex-direction:column;overflow:hidden;
-  background:var(--surface);transition:background var(--tf)}
+  background:var(--surface);transition:background var(--tf);box-sizing:border-box}
 .m-cell:hover{background:#FAFAF8}
 .m-cell.fest{background:#FBF5EF}
 .m-cell.today{box-shadow:inset 0 0 0 2px var(--p)}
@@ -462,7 +464,7 @@ textarea.input{min-height:80px;resize:vertical}
 .ev-more{font-size:10px;color:var(--tx3);padding-left:2px}
 .blk-pill{background:#2D2926;color:#fff}
 @media(max-width:560px){
-  .m-cell{min-height:52px;padding:4px 3px}
+  .m-cell{padding:4px 3px}
   .m-num{font-size:11.5px;width:22px;height:22px}
   .month-lbl{font-size:9.5px;padding:6px 0}
 }
@@ -1084,7 +1086,7 @@ function MonthView({ refDate, events, blocks, onSelectDay }) {
   for (let d = 1; d <= days; d++) cells.push(new Date(year, month, d));
   while (cells.length % 7 !== 0) cells.push(null);
   const cellH = isMobile ? 54 : 90;
-  return /* @__PURE__ */ React.createElement("div", { className: "month-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "month-labels" }, (isMobile ? DIAS.map((d) => d[0]) : DIAS).map((d, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "month-lbl" }, d))), /* @__PURE__ */ React.createElement("div", { className: "month-cells" }, cells.map((day, i) => {
+  return /* @__PURE__ */ React.createElement("div", { className: "month-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "month-labels" }, (isMobile ? DIAS.map((d) => d[0]) : DIAS).map((d, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "month-lbl" }, d))), /* @__PURE__ */ React.createElement("div", { className: "month-cells", style: { gridAutoRows: `${cellH}px` } }, cells.map((day, i) => {
     if (!day) return /* @__PURE__ */ React.createElement("div", { key: i, className: "m-cell empty", style: { height: cellH } });
     const k = dateKey(day);
     const { evs, bls } = getEventsForDay(events, blocks, day);
@@ -1171,7 +1173,7 @@ function EventModal({ onClose, onSubmit, defaultDate, existing }) {
     }
     onSubmit({ title: title.trim(), start, end, notes: notes.trim() });
   }
-  return /* @__PURE__ */ React.createElement(Modal, { title: existing ? "Editar reserva" : "Nueva solicitud de reserva", onClose }, /* @__PURE__ */ React.createElement("form", { onSubmit: submit }, error && /* @__PURE__ */ React.createElement(Alert, { variant: "error" }, error), /* @__PURE__ */ React.createElement(Field, { label: "T\xEDtulo" }, /* @__PURE__ */ React.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value), placeholder: "Ej. Fin de semana con amigos", required: true })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Llegada" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: start, onChange: (e) => setStart(e.target.value), required: true }))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Salida" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: end, onChange: (e) => setEnd(e.target.value), required: true })))), /* @__PURE__ */ React.createElement(Field, { label: "Notas (opcional)" }, /* @__PURE__ */ React.createElement(Textarea, { value: notes, onChange: (e) => setNotes(e.target.value), placeholder: "Cu\xE1ntas personas, algo a tener en cuenta\u2026" })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--tx3)", marginBottom: 16 } }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), existing ? "Este cambio quedar\xE1 pendiente de aprobaci\xF3n." : "Tu solicitud quedar\xE1 pendiente hasta que el administrador la apruebe."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { variant: "subtle", onClick: onClose }, "Cancelar"), /* @__PURE__ */ React.createElement(Btn, { type: "submit" }, existing ? "Enviar cambio" : "Enviar solicitud"))));
+  return /* @__PURE__ */ React.createElement(Modal, { title: existing ? "Editar reserva" : "Nueva solicitud de reserva", onClose }, /* @__PURE__ */ React.createElement("form", { onSubmit: submit }, error && /* @__PURE__ */ React.createElement(Alert, { variant: "error" }, error), /* @__PURE__ */ React.createElement(Field, { label: "T\xEDtulo" }, /* @__PURE__ */ React.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value), placeholder: "Ej. Fin de semana con amigos", required: true })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement(Field, { label: "Llegada" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: start, onChange: (e) => setStart(e.target.value), required: true }))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement(Field, { label: "Salida" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: end, onChange: (e) => setEnd(e.target.value), required: true })))), /* @__PURE__ */ React.createElement(Field, { label: "Notas (opcional)" }, /* @__PURE__ */ React.createElement(Textarea, { value: notes, onChange: (e) => setNotes(e.target.value), placeholder: "Cu\xE1ntas personas, algo a tener en cuenta\u2026" })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--tx3)", marginBottom: 16 } }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), existing ? "Este cambio quedar\xE1 pendiente de aprobaci\xF3n." : "Tu solicitud quedar\xE1 pendiente hasta que el administrador la apruebe."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { variant: "subtle", onClick: onClose }, "Cancelar"), /* @__PURE__ */ React.createElement(Btn, { type: "submit" }, existing ? "Enviar cambio" : "Enviar solicitud"))));
 }
 function BlockModal({ onClose, onSubmit, defaultDate }) {
   const [title, setTitle] = useState("Uso personal");
@@ -1187,7 +1189,7 @@ function BlockModal({ onClose, onSubmit, defaultDate }) {
     }
     onSubmit({ title: title.trim() || "Uso personal", start, end });
   }
-  return /* @__PURE__ */ React.createElement(Modal, { title: "Bloquear fechas para uso personal", onClose }, /* @__PURE__ */ React.createElement("form", { onSubmit: submit }, error && /* @__PURE__ */ React.createElement(Alert, { variant: "error" }, error), /* @__PURE__ */ React.createElement(Field, { label: "Motivo (opcional)" }, /* @__PURE__ */ React.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Desde" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: start, onChange: (e) => setStart(e.target.value), required: true }))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement(Field, { label: "Hasta" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: end, onChange: (e) => setEnd(e.target.value), required: true })))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { variant: "subtle", onClick: onClose }, "Cancelar"), /* @__PURE__ */ React.createElement(Btn, { variant: "accent", type: "submit", icon: Lock }, "Bloquear fechas"))));
+  return /* @__PURE__ */ React.createElement(Modal, { title: "Bloquear fechas para uso personal", onClose }, /* @__PURE__ */ React.createElement("form", { onSubmit: submit }, error && /* @__PURE__ */ React.createElement(Alert, { variant: "error" }, error), /* @__PURE__ */ React.createElement(Field, { label: "Motivo (opcional)" }, /* @__PURE__ */ React.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement(Field, { label: "Desde" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: start, onChange: (e) => setStart(e.target.value), required: true }))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement(Field, { label: "Hasta" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: end, onChange: (e) => setEnd(e.target.value), required: true })))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { variant: "subtle", onClick: onClose }, "Cancelar"), /* @__PURE__ */ React.createElement(Btn, { variant: "accent", type: "submit", icon: Lock }, "Bloquear fechas"))));
 }
 function ProfileModal({ user, users, isAdmin, onClose, onSubmit }) {
   const [nombre, setNombre] = useState(user.nombre);
@@ -1580,7 +1582,7 @@ function AlfinachApp() {
   if (!currentUser) {
     return /* @__PURE__ */ React.createElement(AuthScreen, { users, onLogin: handleLogin, onRegister: handleRegister });
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("header", { className: "app-header" }, /* @__PURE__ */ React.createElement("div", { className: "header-inner" }, /* @__PURE__ */ React.createElement("div", { className: "header-logo", onClick: () => setView("month") }, /* @__PURE__ */ React.createElement(Home, { size: 20, color: "#fff" }), !isMobile && /* @__PURE__ */ React.createElement("span", { className: "header-logo-text" }, "Alfinach")), /* @__PURE__ */ React.createElement("nav", { className: "header-nav" }, /* @__PURE__ */ React.createElement("button", { className: "h-btn", onClick: () => setActivePanel("house") }, /* @__PURE__ */ React.createElement(Info, { size: 15 }), !isMobile && "La casa"), isAdmin && /* @__PURE__ */ React.createElement("button", { className: "h-btn", style: { position: "relative" }, onClick: () => setActivePanel("admin") }, /* @__PURE__ */ React.createElement(Shield, { size: 15 }), !isMobile && "Administraci\xF3n", totalPending > 0 && /* @__PURE__ */ React.createElement("span", { className: "h-badge" }, totalPending)), /* @__PURE__ */ React.createElement("button", { className: "h-btn", onClick: () => setActivePanel("profile") }, /* @__PURE__ */ React.createElement("span", { className: "user-avatar", style: { background: currentUser.colorHex } }), !isMobile && /* @__PURE__ */ React.createElement("span", null, currentUser.nombre)), /* @__PURE__ */ React.createElement("button", { className: "h-btn h-btn-icon", onClick: handleLogout, title: "Cerrar sesi\xF3n" }, /* @__PURE__ */ React.createElement(LogOut, { size: 15 }))))), /* @__PURE__ */ React.createElement("main", { className: "main" }, /* @__PURE__ */ React.createElement("div", { className: "cal-bar" }, /* @__PURE__ */ React.createElement("div", { className: "cal-nav" }, /* @__PURE__ */ React.createElement("button", { className: "btn-icon", onClick: goPrev }, /* @__PURE__ */ React.createElement(ChevronLeft, { size: 17 })), /* @__PURE__ */ React.createElement("span", { className: "cal-title" }, headerLabel), /* @__PURE__ */ React.createElement("button", { className: "btn-icon", onClick: goNext }, /* @__PURE__ */ React.createElement(ChevronRight, { size: 17 })), !isMobile && /* @__PURE__ */ React.createElement(Btn, { variant: "subtle", size: "sm", onClick: goToday }, "Hoy")), /* @__PURE__ */ React.createElement("div", { className: "view-pills" }, [
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("header", { className: "app-header" }, /* @__PURE__ */ React.createElement("div", { className: "header-inner" }, /* @__PURE__ */ React.createElement("div", { className: "header-top-row" }, /* @__PURE__ */ React.createElement("div", { className: "header-logo", onClick: () => setView("month") }, /* @__PURE__ */ React.createElement(Home, { size: 22, color: "#fff" }), /* @__PURE__ */ React.createElement("span", { className: "header-logo-text" }, "Alfinach"))), /* @__PURE__ */ React.createElement("nav", { className: "header-nav" }, /* @__PURE__ */ React.createElement("button", { className: "h-btn", onClick: () => setActivePanel("house") }, /* @__PURE__ */ React.createElement(Info, { size: 15 }), !isMobile && "La casa"), isAdmin && /* @__PURE__ */ React.createElement("button", { className: "h-btn", style: { position: "relative" }, onClick: () => setActivePanel("admin") }, /* @__PURE__ */ React.createElement(Shield, { size: 15 }), !isMobile && "Administraci\xF3n", totalPending > 0 && /* @__PURE__ */ React.createElement("span", { className: "h-badge" }, totalPending)), /* @__PURE__ */ React.createElement("button", { className: "h-btn", onClick: () => setActivePanel("profile") }, /* @__PURE__ */ React.createElement("span", { className: "user-avatar", style: { background: currentUser.colorHex } }), !isMobile && /* @__PURE__ */ React.createElement("span", null, currentUser.nombre)), /* @__PURE__ */ React.createElement("button", { className: "h-btn h-btn-icon", onClick: handleLogout, title: "Cerrar sesi\xF3n" }, /* @__PURE__ */ React.createElement(LogOut, { size: 15 }))))), /* @__PURE__ */ React.createElement("main", { className: "main" }, /* @__PURE__ */ React.createElement("div", { className: "cal-bar" }, /* @__PURE__ */ React.createElement("div", { className: "cal-nav" }, /* @__PURE__ */ React.createElement("button", { className: "btn-icon", onClick: goPrev }, /* @__PURE__ */ React.createElement(ChevronLeft, { size: 17 })), /* @__PURE__ */ React.createElement("span", { className: "cal-title" }, headerLabel), /* @__PURE__ */ React.createElement("button", { className: "btn-icon", onClick: goNext }, /* @__PURE__ */ React.createElement(ChevronRight, { size: 17 })), !isMobile && /* @__PURE__ */ React.createElement(Btn, { variant: "subtle", size: "sm", onClick: goToday }, "Hoy")), /* @__PURE__ */ React.createElement("div", { className: "view-pills" }, [
     { id: "year", label: "A\xF1o", Icon: CalendarRange },
     { id: "month", label: "Mes", Icon: Calendar },
     { id: "week", label: "Semana", Icon: CalendarDays },
