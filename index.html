@@ -894,9 +894,9 @@ Un saludo.`
 function mailtoHref(to, subject, body) {
   return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
-function Btn({ children, onClick, variant = "primary", size = "", icon: Icon, disabled, type = "button", full, className = "", style: {} }) {
+function Btn({ children, onClick, variant = "primary", size = "", icon: Icon, disabled, type = "button", full, className = "", style }) {
   const cls = `btn btn-${variant}${size ? ` btn-${size}` : ""}${full ? " btn-full" : ""}${className ? " " + className : ""}`;
-  return /* @__PURE__ */ React.createElement("button", { type, onClick, disabled, className: cls }, Icon && /* @__PURE__ */ React.createElement(Icon, { size: size === "sm" ? 14 : 15 }), children);
+  return /* @__PURE__ */ React.createElement("button", { type, onClick, disabled, className: cls, style }, Icon && /* @__PURE__ */ React.createElement(Icon, { size: size === "sm" ? 14 : 15 }), children);
 }
 function Field({ label, children, hint }) {
   return /* @__PURE__ */ React.createElement("div", { className: "field" }, label && /* @__PURE__ */ React.createElement("span", { className: "field-label" }, label), children, hint && /* @__PURE__ */ React.createElement("p", { className: "field-hint" }, hint));
@@ -910,8 +910,8 @@ function Sel(props) {
 function Textarea(props) {
   return /* @__PURE__ */ React.createElement("textarea", { ...props, className: `input${props.className ? " " + props.className : ""}` });
 }
-function Badge({ children, variant = "primary" }) {
-  return /* @__PURE__ */ React.createElement("span", { className: `badge badge-${variant}` }, children);
+function Badge({ children, variant = "primary", style }) {
+  return /* @__PURE__ */ React.createElement("span", { className: `badge badge-${variant}`, style }, children);
 }
 function Alert({ children, variant = "error" }) {
   const Icon = variant === "error" ? AlertCircle : Check;
